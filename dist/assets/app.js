@@ -6,7 +6,7 @@ const uid = prefix => prefix + '-' + (globalThis.crypto?.randomUUID?.() ?? Date.
 const storageKey = 'epsilon.workspace.v1';
 const projectIds = Object.keys(planningProjects);
 const roles = { admin:'Администратор', manager:'Руководитель проекта', engineer:'Инженер', procurement:'Закупки', investor:'Инвестор · просмотр' };
-const routes = { dashboard:'Дашборд', planning:'Планирование', purchases:'Закупки', budget:'Бюджет', quality:'Качество и брак', changes:'Корректировки', reports:'Отчёты', users:'Пользователи' };
+const routes = { dashboard:'Дашборд', planning:'Планирование', technology:'Технологическая карта', purchases:'Закупки', budget:'Бюджет', quality:'Качество и брак', changes:'Корректировки', reports:'Отчёты', users:'Пользователи' };
 const stages = [
   { id:'backlog', label:'Бэклог', color:'#718493' },
   { id:'approval', label:'К утверждению', color:'#a999ff' },
@@ -83,9 +83,10 @@ let selectedTask = null;
 let dragId = null;
 let toastTimer;
 let drawerReturnFocus;
+initializeTechnology(saved);
 
 function persist() {
-  try { localStorage.setItem(storageKey, JSON.stringify({ tasks, users, reports:reportHistory, taskEvents, scope, period })); return true; }
+  try { localStorage.setItem(storageKey, JSON.stringify({ tasks, users, reports:reportHistory, taskEvents, scope, period, technology:technologyState() })); return true; }
   catch { notify('Не удалось сохранить изменения в браузере. Экспортируйте снимок данных.'); return false; }
 }
 function notify(message) { $('toast').textContent = message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4200); }
@@ -162,7 +163,7 @@ function taskCard(task) {
 function renderPlanning() {
   const query=$('taskSearch').value.trim().toLocaleLowerCase('ru');
   const all=tasks.filter(inScope),cards=all.filter(task=>(task.title+' '+task.code+' '+taskOwner(task)+' '+planningProjects[task.project].code).toLocaleLowerCase('ru').includes(query));
-  const t=totals(),proposed=all.filter(task=>task.proposed).reduce((sum,task)=>sum+task.plan,0);
+  const t=totals(),proposed=all.filter(task=>task.proposed&&!task.superseded).reduce((sum,task)=>sum+task.plan,0);
   $('boardScope').textContent=scopeName(); $('boardCount').textContent=cards.length+'/'+all.length+' пакетов';
   $('boardStats').innerHTML='<span>Базовый бюджет<strong>'+money(t.base)+'</strong></span><span>Факт + обязательства<strong>'+money(t.actual+t.commitments)+'</strong></span><span>Прогноз EAC<strong class="accent">'+money(t.eac)+'</strong></span><span>Новые заявки<strong>'+money(proposed)+'</strong></span>';
   $('kanbanBoard').innerHTML=stages.map(stage=>{const items=cards.filter(task=>task.stage===stage.id);return '<section class="kanban-column" aria-label="'+stage.label+'"><div class="kanban-column-head" style="--stage-color:'+stage.color+'"><h2>'+stage.label+'</h2><span>'+String(items.length).padStart(2,'0')+'</span></div><div class="kanban-cards" data-drop-stage="'+stage.id+'">'+items.map(taskCard).join('')+(stage.id==='backlog'?'<button class="backlog-add" data-add-task type="button">+ Добавить карточку</button>':'')+(!items.length&&stage.id!=='backlog'?empty('Карточек пока нет'):'')+'</div></section>';}).join('');
@@ -190,7 +191,7 @@ function renderBudget() {
   const rows=growthSources(),max=totals().eac;
   $('waterfall').innerHTML=rows.map(item=>'<div class="waterfall-row"><span>'+escapeHtml(item.name)+'</span><div class="waterfall-bar"><span style="width:'+Math.max(1,Math.abs(item.value)/max*100)+'%;background:'+(item.kind==='base'?'var(--blue)':item.kind==='total'?'var(--accent)':item.kind==='saving'?'var(--good)':'var(--bad)')+'"></span></div><strong class="'+(item.kind==='growth'?'negative':item.kind==='saving'?'positive':'')+'">'+(['growth','saving'].includes(item.kind)?delta(item.value):money(item.value))+'</strong></div>').join('');
   $('iterationBudget').innerHTML=tasks.filter(inScope).filter(task=>!task.proposed).map(task=>'<div class="list-row clickable" data-task="'+escapeHtml(task.id)+'" tabindex="0" role="button"><div class="list-row-top"><h3>'+escapeHtml(task.code+' · '+task.title)+'</h3><span class="mono '+(task.eac>task.plan?'negative':'positive')+'">'+delta(task.eac-task.plan)+'</span></div><div class="budget-track"><span style="width:'+Math.min(100,task.actual/Math.max(1,task.eac)*100)+'%;background:var(--accent)"></span><span style="width:'+Math.min(100,task.commitments/Math.max(1,task.eac)*100)+'%;background:var(--blue)"></span></div><p>'+planningProjects[task.project].code+' · план '+money(task.plan)+' · EAC '+money(task.eac)+'</p></div>').join('');
-  const proposals=tasks.filter(inScope).filter(task=>task.proposed);
+  const proposals=tasks.filter(inScope).filter(task=>task.proposed&&!task.superseded);
   $('proposedBudget').innerHTML=proposals.length?proposals.map(task=>'<div class="list-row clickable" data-task="'+escapeHtml(task.id)+'" tabindex="0" role="button"><div class="list-row-top"><h3>'+escapeHtml(task.title)+'</h3><strong class="mono">'+money(task.plan)+'</strong></div><p>'+planningProjects[task.project].code+' · '+stages.find(stage=>stage.id===task.stage).label+' · '+escapeHtml(taskOwner(task))+'</p></div>').join(''):empty('Новых бюджетных заявок нет. Добавьте карточку в бэклог в разделе «Планирование».');
 }
 function renderQuality() {
@@ -224,7 +225,7 @@ function render() {
   $('sidebarScopeNote').textContent=scope==='all'?'3 проекта · единый контроль':planningProjects[scope].name;
   document.querySelectorAll('.scope-label').forEach(label=>label.textContent=scope==='all'?'ПОРТФЕЛЬ / 03 ПРОЕКТА':planningProjects[scope].code+' / '+planningProjects[scope].direction.toUpperCase());
   $('snapshotDate').textContent=period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
-  renderDashboard(); renderPlanning(); renderPurchases(); renderBudget(); renderQuality(); renderChanges(); renderUsers(); renderReports();
+  renderDashboard(); renderPlanning(); renderPurchases(); renderBudget(); renderQuality(); renderChanges(); renderUsers(); renderReports(); renderTechnology();
 }
 function routeUrl(route) { return '/'+route+'?project='+scope+'&period='+period; }
 function parseUrl() {
@@ -239,6 +240,7 @@ function parseUrl() {
 }
 function navigate(route,options={}) {
   if(!(route in routes))return;
+  if(route==='technology'&&scope==='all'){scope=techProject;persist();render();}
   closeDrawer(); currentRoute=route;
   document.querySelectorAll('[data-view]').forEach(view=>view.hidden=view.dataset.view!==route);
   document.querySelectorAll('.sidebar nav [data-route]').forEach(link=>{if(link.dataset.route===route)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
@@ -268,11 +270,11 @@ function openTaskForm(id=null) {
   form.elements.title.value=task?.title??'';
   form.elements.due.value=task?.due??'2026-10-20';
   form.elements.plan.value=task?String(task.plan*1000):'';
-  form.elements.plan.readOnly=Boolean(task&&!task.proposed);
+  form.elements.plan.readOnly=Boolean(task&&(!task.proposed||task.techRequestId));
   form.elements.reason.value=task?.reason??'';
   $('taskDialogTitle').textContent=task?'Редактировать карточку':'Карточка в бэклог';
   $('saveTask').textContent=task?'Сохранить изменения':'Добавить в бэклог';
-  $('taskBudgetNote').textContent=task&&!task.proposed?'Бюджет утверждён. Здесь редактируются содержание, ответственный и прогнозный срок.':'Оценка карточки отображается в бюджетных заявках и ожидает утверждения.';
+  $('taskBudgetNote').textContent=task?.techRequestId?'Оценка зафиксирована в запросе компонента. Ответственный, срок и обоснование обновятся и в связанном запросе.':task&&!task.proposed?'Бюджет утверждён. Здесь редактируются содержание, ответственный и прогнозный срок.':'Оценка карточки отображается в бюджетных заявках и ожидает утверждения.';
   $('taskDialog').showModal();form.elements.title.focus();
 }
 function saveTask(event) {
@@ -285,7 +287,8 @@ function saveTask(event) {
   if(editingTask) {
     const task=tasks.find(item=>item.id===editingTask);
     Object.assign(task,{title,ownerId,owner:owner.name,due:form.elements.due.value,forecast:displayDate(form.elements.due.value),reason:form.elements.reason.value.trim()});
-    if(task.proposed)task.plan=task.eac=plan;
+    if(task.proposed&&!task.techRequestId)task.plan=task.eac=plan;
+    if(task.techRequestId){const request=techRequests.find(r=>r.id===task.techRequestId);if(request){request.ownerId=task.ownerId;request.due=task.due;request.reason=task.reason;const component=techComponents.find(c=>c.id===task.componentId);if(component)addTechEvent(component,'request-edit',request.code+' · обновление карточки',task.reason,request.document,{requestId:request.id});}}
   } else {
     const project=form.elements.project.value;
     tasks.push({id:uid('task'),project,stage:'backlog',code:'WP-'+String(tasks.length+1).padStart(3,'0'),title,ownerId,owner:owner.name,baseline:displayDate(form.elements.due.value),forecast:displayDate(form.elements.due.value),due:form.elements.due.value,plan,actual:0,commitments:0,eac:plan,health:'ok',healthText:'Новая бюджетная заявка',reason:form.elements.reason.value.trim()||'Пакет работ ожидает уточнения и утверждения.',links:[],proposed:true});
@@ -314,7 +317,7 @@ function openTask(id) {
   const task=tasks.find(item=>item.id===id);if(!task)return;selectedTask=id;
   const lastEvents=taskEvents.filter(item=>item.taskId===id).slice(-3).reverse();
   const body=badge(task.proposed?'Бюджетная заявка':'Утверждённый пакет',task.proposed?'warning':'neutral')+detailRows([['Проект',planningProjects[task.project].code],['Ответственный',taskOwner(task)],['Базовый срок',task.baseline],['Прогнозный срок',task.forecast],['План',money(task.plan)],['Факт / обязательства',money(task.actual)+' / '+money(task.commitments)],['EAC',money(task.eac)],['Связанные документы',task.links?.join(' · ')||'Документы ещё не приложены']])+'<div class="drawer-note">'+escapeHtml(task.reason)+'</div><label class="control"><span>Статус карточки</span><select id="taskStage">'+stages.map(stage=>'<option value="'+stage.id+'" '+(stage.id===task.stage?'selected':'')+'>'+stage.label+'</option>').join('')+'</select></label><div class="drawer-actions"><button class="btn primary" data-edit-task="'+escapeHtml(task.id)+'" type="button">Редактировать</button></div>'+(lastEvents.length?'<div style="margin-top:24px"><span class="eyebrow">ИСТОРИЯ ПЕРЕМЕЩЕНИЙ</span>'+lastEvents.map(item=>'<div class="list-row"><h3>'+stages.find(stage=>stage.id===item.from)?.label+' → '+stages.find(stage=>stage.id===item.to)?.label+'</h3><p>'+new Date(item.at).toLocaleString('ru-RU')+'</p></div>').join('')+'</div>':'');
-  openDrawer('КАРТОЧКА / '+task.code,task.title,body);
+  openDrawer('КАРТОЧКА / '+task.code,task.title,body+(task.techRequestId?'<div class="drawer-actions"><button class="btn" data-tech-request="'+escapeHtml(task.techRequestId)+'" type="button">Связанный запрос ↗</button></div><p class="form-note" style="margin-top:16px">Перемещение карточки не подтверждает испытание, приёмку или оплату. Результат верификации фиксируется в связанном запросе.</p>':''));
 }
 function openPurchase(id) {
   const purchase=purchases.find(item=>item.id===id);if(!purchase)return;
@@ -340,18 +343,21 @@ function saveUser(event) {
 }
 
 function snapshot() {
-  return { system:'ЭПСИЛОН', capturedAt:new Date().toISOString(), scope, scopeName:scopeName(), period, totals:totals(), projects:scopeIds().map(id=>({id,...planningProjects[id],financial:financial(id)})), tasks:tasks.filter(inScope).map(task=>({...task,owner:taskOwner(task)})), purchases:purchases.filter(inScope), changes:changes.filter(inScope), scores:healthScores() };
+  return { system:'ЭПСИЛОН', capturedAt:new Date().toISOString(), scope, scopeName:scopeName(), period, totals:totals(), projects:scopeIds().map(id=>({id,...planningProjects[id],financial:financial(id)})), tasks:tasks.filter(inScope).map(task=>({...structuredClone(task),owner:taskOwner(task)})), purchases:structuredClone(purchases.filter(inScope)), changes:structuredClone(changes.filter(inScope)), scores:healthScores(), technology:structuredClone({components:techComponents.filter(inScope),requests:techRequests.filter(inScope),events:techEvents.filter(inScope)}) };
 }
 function csvCell(value) { let text=String(value??'');if(/^[=+\-@]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'; }
 function downloadReport(data,format,name) {
   let body,type,extension;
+  const tech=data.technology??{components:[],requests:[],events:[]};
   if(format==='json'){body=JSON.stringify(data,null,2);type='application/json;charset=utf-8';extension='json';}
   else if(format==='excel'){
     const rows=[['ЭПСИЛОН',data.scopeName,data.period],['Финансовые показатели','EUR'],['План',data.totals.base*1000],['Факт',data.totals.actual*1000],['Обязательства',data.totals.commitments*1000],['EAC',data.totals.eac*1000],[],['КАРТОЧКИ'],['Код','Проект','Название','Статус','Ответственный','Срок','План EUR','Факт EUR','Обязательства EUR','EAC EUR','Бюджетная заявка'],...data.tasks.map(task=>[task.code,planningProjects[task.project].code,task.title,stages.find(stage=>stage.id===task.stage).label,task.owner,task.due,task.plan*1000,task.actual*1000,task.commitments*1000,task.eac*1000,task.proposed?'Да':'Нет']),[],['ЗАКУПКИ'],['Код','Проект','Компонент','Сумма EUR','Принято','Брак','Полный пакет'],...data.purchases.map(item=>[item.id,planningProjects[item.project].code,item.component,item.amount*1000,item.accepted,item.defect,item.complete?'Да':'Нет']),[],['КОРРЕКТИРОВКИ'],['Код','Проект','Причина','Влияние EUR','Статус'],...data.changes.map(item=>[item.id,planningProjects[item.project].code,item.title,item.amount*1000,item.status])];
+    rows.push([],['ТЕХНОЛОГИЧЕСКАЯ КАРТА'],['Проект','Подсистема','Код','Компонент','Ревизия','На изделие','Потребность партии','Годных актуальной ревизии','Склад всего годных','Ревизия остатка','В пути актуальной ревизии','Ревизия заказа','Брак','Верификация','Основание'],...tech.components.map(c=>[planningProjects[c.project].code,c.group,c.code,c.name,c.revision,c.perUnit,c.perUnit*techProducts[c.project].batch,usableStock(c),c.stock,c.stockRevision,usableOrder(c),c.orderRevision,c.defect,techVerificationLabels[c.verification],c.document]),[],['ЗАПРОСЫ КОМПОНЕНТОВ'],['Код','Проект','Компонент','Ревизия','Тип','Статус','Обоснование','Оценка EUR','Срок','Основание'],...tech.requests.map(r=>[r.code,planningProjects[r.project].code,r.componentName,r.revision,r.type,requestLabel(r),r.reason,r.cost,r.due,r.document]),[],['ИСТОРИЯ СОСТАВА'],['Дата','Изменение','Обоснование','Документ'],...tech.events.map(e=>[e.at,e.title,e.reason,e.document]));
     body='\ufeff'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');type='text/csv;charset=utf-8';extension='csv';
   }else{
     const table='<table><tr><th>Пакет работ</th><th>Проект</th><th>Статус</th><th>Ответственный</th><th>Срок</th><th>План / EAC</th></tr>'+data.tasks.map(task=>'<tr><td>'+escapeHtml(task.title)+'</td><td>'+planningProjects[task.project].code+'</td><td>'+stages.find(stage=>stage.id===task.stage).label+'</td><td>'+escapeHtml(task.owner)+'</td><td>'+displayDate(task.due)+'</td><td>'+money(task.plan)+' / '+money(task.eac)+'</td></tr>').join('')+'</table>';
-    body='\ufeff<html><head><meta charset="utf-8"><title>ЭПСИЛОН</title><style>body{font-family:Arial;color:#14242f}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;font-size:11px}th{background:#e8f4f2;text-align:left}h1{font-size:28px}h2{font-size:18px}</style></head><body><h1>ЭПСИЛОН · Обзор проекта</h1><p>'+escapeHtml(data.scopeName)+' · '+data.period.toUpperCase()+'</p><p>Снимок: '+new Date(data.capturedAt).toLocaleString('ru-RU')+'</p><h2>Финансовые показатели</h2><p>План: '+money(data.totals.base)+'<br>Факт: '+money(data.totals.actual)+'<br>Обязательства: '+money(data.totals.commitments)+'<br>EAC: '+money(data.totals.eac)+'</p><h2>Пакеты работ</h2>'+table+'<h2>Профиль проекта</h2><p>'+data.scores.map(item=>item.label+': '+item.value+'%').join(' · ')+'</p><p>Демонстрационные данные.</p></body></html>';type='application/msword;charset=utf-8';extension='doc';
+    const techTable='<h2>Технологическая карта</h2><table><tr><th>Компонент</th><th>Ревизия</th><th>Годных актуальной ревизии / потребность</th><th>Брак</th><th>Верификация</th><th>Основание</th></tr>'+tech.components.map(c=>'<tr><td>'+escapeHtml(planningProjects[c.project].code+' · '+c.code+' · '+c.name)+'</td><td>'+escapeHtml(c.revision)+'</td><td>'+usableStock(c)+' / '+c.perUnit*techProducts[c.project].batch+'</td><td>'+c.defect+'</td><td>'+techVerificationLabels[c.verification]+'</td><td>'+escapeHtml(c.document)+'</td></tr>').join('')+'</table><h2>Обоснования изменений</h2>'+tech.events.map(e=>'<p><strong>'+escapeHtml(e.title)+'</strong><br>'+escapeHtml(e.reason)+'<br>Основание: '+escapeHtml(e.document)+'</p>').join('')+'<h2>Запросы компонентов</h2>'+tech.requests.map(r=>'<p><strong>'+escapeHtml(r.code+' · '+r.componentName+' · '+r.revision)+'</strong><br>'+requestLabel(r)+' · оценка '+euros(r.cost)+'<br>'+escapeHtml(r.reason)+'</p>').join('');
+    body='\ufeff<html><head><meta charset="utf-8"><title>ЭПСИЛОН</title><style>body{font-family:Arial;color:#14242f}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;font-size:11px}th{background:#e8f4f2;text-align:left}h1{font-size:28px}h2{font-size:18px}</style></head><body><h1>ЭПСИЛОН · Обзор проекта</h1><p>'+escapeHtml(data.scopeName)+' · '+data.period.toUpperCase()+'</p><p>Снимок: '+new Date(data.capturedAt).toLocaleString('ru-RU')+'</p><h2>Финансовые показатели</h2><p>План: '+money(data.totals.base)+'<br>Факт: '+money(data.totals.actual)+'<br>Обязательства: '+money(data.totals.commitments)+'<br>EAC: '+money(data.totals.eac)+'</p><h2>Пакеты работ</h2>'+table+'<h2>Профиль проекта</h2><p>'+data.scores.map(item=>item.label+': '+item.value+'%').join(' · ')+'</p>'+techTable+'<p>Демонстрационные данные.</p></body></html>';type='application/msword;charset=utf-8';extension='doc';
   }
   const url=URL.createObjectURL(new Blob([body],{type})),link=document.createElement('a');link.href=url;link.download=name+'.'+extension;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
@@ -382,6 +388,7 @@ $('periodSelect').addEventListener('change',event=>{period=event.target.value;pe
 $('taskSearch').addEventListener('input',renderPlanning);$('userSearch').addEventListener('input',renderUsers);$('purchaseFilter').addEventListener('change',renderPurchases);
 $('addTask').addEventListener('click',()=>openTaskForm());$('taskForm').addEventListener('submit',saveTask);$('taskForm').elements.project.addEventListener('change',event=>fillOwners(event.target.value));
 $('addUser').addEventListener('click',()=>openUserForm());$('userForm').addEventListener('submit',saveUser);
+setupTechnology();
 $('currentUserButton').addEventListener('click',()=>{navigate('users');openUserForm('admin');});
 $('closeDrawer').addEventListener('click',closeDrawer);$('drawerBody').addEventListener('change',event=>{if(event.target.id==='taskStage')moveTask(selectedTask,event.target.value);});
 for(const id of ['dashboardExport','budgetExport','reportExport'])$(id).addEventListener('click',openReportDialog);
