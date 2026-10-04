@@ -1,0 +1,3011 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Демонстрационный инвесторский контур прозрачности расходов на разработку."
+    />
+    <title>Контур разработки — обзор инвестора</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23080c10'/%3E%3Cpath d='M13 46V18h38v28H13Zm7-7h24V25H20v14Zm6-6V28h12v5H26Z' fill='%2355e6d2'/%3E%3C/svg%3E"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+      :root {
+        --bg: #080c10;
+        --surface: #10171e;
+        --surface-2: #151e27;
+        --surface-3: #1b2731;
+        --line: #293640;
+        --line-strong: #42525f;
+        --text: #f0f5f7;
+        --text-muted: #99aab6;
+        --text-dim: #6e808d;
+        --accent: #55e6d2;
+        --accent-soft: #143b3b;
+        --blue: #63a7ff;
+        --good: #4ddc8b;
+        --warn: #f4ba4b;
+        --bad: #f46e6e;
+        --violet: #a999ff;
+        --radius: 0;
+        --nav-width: 232px;
+        --shadow: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--bg);
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        background:
+          linear-gradient(rgba(86, 120, 137, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(86, 120, 137, 0.05) 1px, transparent 1px),
+          var(--bg);
+        background-size: 32px 32px;
+        color: var(--text);
+        font-family: "IBM Plex Sans", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+
+      button,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      select:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .shell {
+        display: grid;
+        min-height: 100vh;
+        grid-template-columns: var(--nav-width) minmax(0, 1fr);
+      }
+
+      .side {
+        position: sticky;
+        top: 0;
+        display: flex;
+        height: 100vh;
+        flex-direction: column;
+        border-right: 1px solid var(--line);
+        background: rgba(8, 12, 16, 0.95);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 88px;
+        padding: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand-mark {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--accent);
+      }
+
+      .brand-mark::before,
+      .brand-mark::after {
+        position: absolute;
+        content: "";
+        background: var(--accent);
+      }
+
+      .brand-mark::before {
+        width: 16px;
+        height: 1px;
+        top: 9px;
+        left: 7px;
+      }
+
+      .brand-mark::after {
+        width: 1px;
+        height: 16px;
+        top: 7px;
+        left: 15px;
+      }
+
+      .brand-copy {
+        display: grid;
+        gap: 1px;
+      }
+
+      .brand-copy strong {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      .brand-copy span,
+      .nav-kicker,
+      .micro-label,
+      .eyebrow {
+        color: var(--text-dim);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .side-nav {
+        display: grid;
+        gap: 4px;
+        padding: 18px 12px;
+      }
+
+      .nav-kicker {
+        padding: 0 12px 9px;
+      }
+
+      .nav-item {
+        position: relative;
+        display: flex;
+        min-height: 42px;
+        align-items: center;
+        border: 0;
+        border-left: 2px solid transparent;
+        background: transparent;
+        color: var(--text-muted);
+        padding: 0 12px;
+        text-align: left;
+      }
+
+      .nav-item:hover {
+        background: var(--surface);
+        color: var(--text);
+      }
+
+      .nav-item.active {
+        border-left-color: var(--accent);
+        background: var(--surface-2);
+        color: var(--text);
+      }
+
+      .project-identity {
+        margin-top: auto;
+        border-top: 1px solid var(--line);
+        padding: 20px 24px;
+      }
+
+      .project-identity .project-code {
+        margin: 7px 0 5px;
+        color: var(--accent);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 15px;
+      }
+
+      .project-identity p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .main {
+        min-width: 0;
+      }
+
+      .topbar {
+        position: sticky;
+        z-index: 10;
+        top: 0;
+        display: flex;
+        min-height: 76px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(8, 12, 16, 0.92);
+        padding: 14px 32px;
+        backdrop-filter: blur(16px);
+      }
+
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-muted);
+        font-size: 14px;
+      }
+
+      .breadcrumb strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .crumb-sep {
+        color: var(--text-dim);
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .select-wrap {
+        display: grid;
+        gap: 2px;
+      }
+
+      .select-wrap label {
+        color: var(--text-dim);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      select {
+        min-width: 148px;
+        border: 1px solid var(--line);
+        border-radius: 0;
+        background: var(--surface);
+        color: var(--text);
+        padding: 7px 28px 7px 10px;
+      }
+
+      .btn {
+        min-height: 38px;
+        border: 1px solid var(--line-strong);
+        border-radius: 0;
+        background: transparent;
+        color: var(--text);
+        padding: 0 14px;
+        white-space: nowrap;
+      }
+
+      .btn:hover {
+        border-color: var(--text-muted);
+        background: var(--surface-2);
+      }
+
+      .btn.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #081012;
+        font-weight: 600;
+      }
+
+      .btn.primary:hover {
+        background: #8af0e3;
+      }
+
+      .content {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 34px 32px 48px;
+      }
+
+      .title-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 28px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 7px;
+        font-size: clamp(28px, 3vw, 40px);
+        font-weight: 500;
+        letter-spacing: -0.025em;
+        line-height: 1.05;
+      }
+
+      h2 {
+        margin-bottom: 0;
+        font-size: 17px;
+        font-weight: 500;
+      }
+
+      h3 {
+        margin-bottom: 2px;
+        font-size: 15px;
+        font-weight: 500;
+      }
+
+      .title-row p {
+        margin: 0;
+        color: var(--text-muted);
+      }
+
+      .snapshot {
+        min-width: 245px;
+        border-left: 2px solid var(--accent);
+        background: var(--surface);
+        padding: 10px 12px;
+      }
+
+      .snapshot strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .metric {
+        min-height: 136px;
+        border-right: 1px solid var(--line);
+        padding: 18px;
+      }
+
+      .metric:last-child {
+        border-right: 0;
+      }
+
+      .metric-label {
+        color: var(--text-muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        margin: 15px 0 6px;
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: clamp(22px, 2.4vw, 32px);
+        font-weight: 500;
+        letter-spacing: -0.055em;
+        white-space: nowrap;
+      }
+
+      .metric-note {
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .metric.delta .metric-value {
+        color: var(--bad);
+      }
+
+      .metric.accent .metric-value {
+        color: var(--accent);
+      }
+
+      .section-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 8fr) minmax(280px, 4fr);
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .section-grid.lower {
+        grid-template-columns: minmax(0, 7fr) minmax(290px, 5fr);
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        padding: 15px 18px;
+      }
+
+      .panel-head p {
+        margin: 3px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .panel-body {
+        padding: 18px;
+      }
+
+      .waterfall {
+        display: grid;
+        gap: 13px;
+      }
+
+      .wf-row {
+        display: grid;
+        grid-template-columns: minmax(125px, 1.35fr) minmax(120px, 5fr) minmax(118px, 1fr);
+        align-items: center;
+        gap: 13px;
+      }
+
+      .wf-name {
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .wf-track {
+        position: relative;
+        height: 20px;
+        overflow: hidden;
+        background: rgba(97, 124, 138, 0.15);
+      }
+
+      .wf-bar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        min-width: 2px;
+      }
+
+      .wf-bar.base {
+        background: var(--blue);
+      }
+
+      .wf-bar.plus {
+        background: var(--bad);
+      }
+
+      .wf-bar.minus {
+        background: var(--good);
+      }
+
+      .wf-bar.total {
+        background: var(--accent);
+      }
+
+      .wf-value {
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .wf-total {
+        color: var(--text-muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .decision-list {
+        display: grid;
+      }
+
+      .decision {
+        border-bottom: 1px solid var(--line);
+        padding: 15px 18px;
+      }
+
+      .decision:last-child {
+        border-bottom: 0;
+      }
+
+      .decision-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .decision-top h3 {
+        line-height: 1.3;
+      }
+
+      .decision p {
+        margin: 8px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        border-left: 3px solid var(--text-dim);
+        background: var(--surface-3);
+        color: var(--text-muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.03em;
+        padding: 0 7px;
+        white-space: nowrap;
+      }
+
+      .status.risk {
+        border-left-color: var(--bad);
+        color: #ffc4c4;
+      }
+
+      .status.wait {
+        border-left-color: var(--warn);
+        color: #ffdc9a;
+      }
+
+      .status.ok {
+        border-left-color: var(--good);
+        color: #a6f1c8;
+      }
+
+      .iteration-list {
+        display: grid;
+        gap: 17px;
+      }
+
+      .iteration-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .iteration-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .iteration-meta strong {
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .iteration-meta span {
+        color: var(--text-muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .stacked {
+        display: flex;
+        height: 18px;
+        overflow: hidden;
+        background: rgba(97, 124, 138, 0.15);
+      }
+
+      .stacked span {
+        display: block;
+        height: 100%;
+      }
+
+      .stacked .actual {
+        background: var(--accent);
+      }
+
+      .stacked .commitment {
+        background: var(--warn);
+      }
+
+      .stacked .forecast {
+        background: var(--violet);
+      }
+
+      .iteration-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 17px;
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      .iteration-legend strong {
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 500;
+      }
+
+      .quality-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .quality-stat {
+        padding: 17px;
+        border-right: 1px solid var(--line);
+      }
+
+      .quality-stat:last-child {
+        border-right: 0;
+      }
+
+      .quality-stat strong {
+        display: block;
+        margin-top: 8px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 20px;
+        font-weight: 500;
+      }
+
+      .quality-stat.bad strong {
+        color: var(--bad);
+      }
+
+      .quality-stat.good strong {
+        color: var(--good);
+      }
+
+      .quality-stat.accent strong {
+        color: var(--accent);
+      }
+
+      .quality-list {
+        display: grid;
+      }
+
+      .quality-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px 17px;
+      }
+
+      .quality-row:last-child {
+        border-bottom: 0;
+      }
+
+      .quality-row span {
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .quality-row strong {
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .table-panel {
+        margin-top: 18px;
+      }
+
+      .table-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid var(--line);
+        padding: 15px 18px;
+      }
+
+      .table-toolbar p {
+        margin: 3px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .mini-action {
+        border: 0;
+        border-bottom: 1px solid var(--accent);
+        background: transparent;
+        color: var(--accent);
+        font-size: 13px;
+        padding: 3px 0;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 940px;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th {
+        position: sticky;
+        top: 76px;
+        z-index: 2;
+        border-bottom: 1px solid var(--line-strong);
+        background: var(--surface);
+        color: var(--text-dim);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        padding: 13px 12px;
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      td {
+        border-bottom: 1px solid var(--line);
+        color: var(--text-muted);
+        padding: 13px 12px;
+        vertical-align: middle;
+      }
+
+      tbody tr {
+        cursor: pointer;
+      }
+
+      tbody tr:hover {
+        background: var(--surface-2);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .cell-main {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .money,
+      .trace {
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .trace {
+        color: var(--accent);
+        text-align: left;
+      }
+
+      .negative {
+        color: var(--bad);
+      }
+
+      .change-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 8fr) minmax(280px, 4fr);
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .change-list {
+        display: grid;
+      }
+
+      .change-row {
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        padding: 14px 18px;
+      }
+
+      .change-row:last-child {
+        border-bottom: 0;
+      }
+
+      .change-id {
+        color: var(--accent);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+      }
+
+      .change-copy strong {
+        display: block;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .change-copy span {
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .change-delta {
+        color: var(--bad);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .report-list {
+        display: grid;
+      }
+
+      .report-row {
+        border-bottom: 1px solid var(--line);
+        padding: 15px 18px;
+      }
+
+      .report-row:last-child {
+        border-bottom: 0;
+      }
+
+      .report-row strong {
+        display: block;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .report-row span {
+        display: block;
+        margin-top: 5px;
+        color: var(--text-muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+      }
+
+      .planning-section {
+        scroll-margin-top: 96px;
+        margin-top: 28px;
+      }
+
+      .planning-top {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 22px;
+        margin-bottom: 16px;
+      }
+
+      .planning-top h2 {
+        margin-top: 4px;
+        font-size: 25px;
+      }
+
+      .planning-top p {
+        max-width: 720px;
+        margin: 6px 0 0;
+        color: var(--text-muted);
+      }
+
+      .planning-controls {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+      }
+
+      .planning-controls .select-wrap {
+        min-width: 238px;
+      }
+
+      .portfolio-summary {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .portfolio-stat {
+        min-height: 118px;
+        border-right: 1px solid var(--line);
+        padding: 16px;
+      }
+
+      .portfolio-stat:last-child {
+        border-right: 0;
+      }
+
+      .portfolio-stat strong {
+        display: block;
+        margin: 11px 0 4px;
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 21px;
+        font-weight: 500;
+        letter-spacing: -0.035em;
+      }
+
+      .portfolio-stat.accent strong {
+        color: var(--accent);
+      }
+
+      .portfolio-stat.risk strong {
+        color: var(--bad);
+      }
+
+      .portfolio-stat span:last-child {
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .planning-alert {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+        margin-top: 18px;
+        border-left: 3px solid var(--warn);
+        padding: 14px 16px;
+      }
+
+      .planning-alert strong {
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .planning-alert p {
+        margin: 2px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .kanban-shell {
+        margin-top: 18px;
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .kanban-board {
+        display: grid;
+        min-width: 1270px;
+        grid-template-columns: repeat(5, minmax(250px, 1fr));
+        align-items: stretch;
+      }
+
+      .kanban-column {
+        min-width: 0;
+        border-right: 1px solid var(--line);
+      }
+
+      .kanban-column:last-child {
+        border-right: 0;
+      }
+
+      .kanban-column-head {
+        display: flex;
+        min-height: 80px;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+        padding: 14px;
+      }
+
+      .kanban-column-head h3 {
+        margin-top: 3px;
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.25;
+      }
+
+      .kanban-column-head p {
+        margin: 3px 0 0;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .kanban-count {
+        min-width: 26px;
+        border-left: 2px solid var(--line-strong);
+        color: var(--text-muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        padding-left: 7px;
+        text-align: right;
+      }
+
+      .kanban-cards {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        min-height: 326px;
+        padding: 12px;
+      }
+
+      .kanban-card {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--line-strong);
+        border-radius: 0;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        padding: 13px;
+        text-align: left;
+      }
+
+      .kanban-card:hover {
+        border-color: var(--text-muted);
+        background: var(--surface-3);
+      }
+
+      .kanban-card.risk {
+        border-left-color: var(--bad);
+      }
+
+      .kanban-card.wait {
+        border-left-color: var(--warn);
+      }
+
+      .kanban-card.ok {
+        border-left-color: var(--good);
+      }
+
+      .card-project,
+      .card-owner,
+      .card-links,
+      .card-budget em,
+      .card-due span {
+        color: var(--text-dim);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        font-style: normal;
+        letter-spacing: 0.035em;
+        text-transform: uppercase;
+      }
+
+      .kanban-card h3 {
+        margin: 7px 0 4px;
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.3;
+      }
+
+      .card-owner {
+        display: block;
+        color: var(--text-muted);
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      .card-due {
+        display: grid;
+        gap: 2px;
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+
+      .card-due strong {
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .card-due.risk strong {
+        color: #ffc4c4;
+      }
+
+      .card-due.wait strong {
+        color: #ffdc9a;
+      }
+
+      .card-budget {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px 10px;
+        margin-top: 11px;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .card-budget span {
+        display: grid;
+        gap: 1px;
+      }
+
+      .card-budget strong {
+        color: var(--text);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .card-budget .forecast strong {
+        color: var(--accent);
+      }
+
+      .card-bottom {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .card-links {
+        max-width: 126px;
+        color: var(--text-muted);
+        font-size: 10px;
+        letter-spacing: 0;
+        line-height: 1.35;
+        text-align: right;
+        text-transform: none;
+      }
+
+      .planning-footnote {
+        margin: 12px 0 0;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .footer-note {
+        margin: 18px 0 0;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .drawer {
+        position: fixed;
+        z-index: 30;
+        top: 0;
+        right: 0;
+        display: grid;
+        width: min(510px, 100vw);
+        height: 100vh;
+        grid-template-rows: auto 1fr;
+        border-left: 1px solid var(--line-strong);
+        background: #0d141a;
+        box-shadow: -24px 0 60px rgba(0, 0, 0, 0.35);
+        transform: translateX(102%);
+        transition: transform 170ms ease;
+      }
+
+      .drawer.open {
+        transform: translateX(0);
+      }
+
+      .drawer-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+        padding: 22px;
+      }
+
+      .drawer-head h2 {
+        margin-top: 5px;
+        font-size: 22px;
+      }
+
+      .close {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+        border: 1px solid var(--line-strong);
+        border-radius: 0;
+        background: transparent;
+        color: var(--text);
+        font-size: 21px;
+      }
+
+      .drawer-body {
+        overflow-y: auto;
+        padding: 22px;
+      }
+
+      .trace-flow {
+        display: grid;
+        gap: 0;
+        margin: 20px 0;
+        border: 1px solid var(--line);
+      }
+
+      .trace-step {
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 14px;
+        border-bottom: 1px solid var(--line);
+        padding: 13px;
+      }
+
+      .trace-step:last-child {
+        border-bottom: 0;
+      }
+
+      .trace-step span {
+        color: var(--text-dim);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .trace-step strong {
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .drawer-note {
+        border-left: 2px solid var(--warn);
+        background: rgba(244, 186, 75, 0.08);
+        color: #fbd793;
+        padding: 13px;
+        font-size: 14px;
+      }
+
+      dialog {
+        width: min(480px, calc(100vw - 32px));
+        border: 1px solid var(--line-strong);
+        border-radius: 0;
+        background: #0d141a;
+        color: var(--text);
+        padding: 0;
+        box-shadow: 0 20px 80px rgba(0, 0, 0, 0.55);
+      }
+
+      dialog::backdrop {
+        background: rgba(2, 5, 8, 0.72);
+      }
+
+      .dialog-head,
+      .dialog-body,
+      .dialog-actions {
+        padding: 20px;
+      }
+
+      .dialog-head {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .dialog-head h2 {
+        margin-top: 4px;
+        font-size: 21px;
+      }
+
+      .dialog-body p {
+        color: var(--text-muted);
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .toast {
+        position: fixed;
+        z-index: 40;
+        right: 24px;
+        bottom: 24px;
+        max-width: min(440px, calc(100vw - 48px));
+        border-left: 3px solid var(--accent);
+        background: #111c22;
+        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+        color: var(--text);
+        padding: 14px 16px;
+        transform: translateY(130%);
+        transition: transform 160ms ease;
+      }
+
+      .toast.show {
+        transform: translateY(0);
+      }
+
+      @media (max-width: 1120px) {
+        .metrics {
+          grid-template-columns: repeat(3, 1fr);
+        }
+
+        .metric:nth-child(3) {
+          border-right: 0;
+        }
+
+        .metric:nth-child(-n + 3) {
+          border-bottom: 1px solid var(--line);
+        }
+
+        .portfolio-summary {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .portfolio-stat:nth-child(3) {
+          border-right: 0;
+        }
+
+        .portfolio-stat:nth-child(-n + 3) {
+          border-bottom: 1px solid var(--line);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .shell {
+          display: block;
+        }
+
+        .side {
+          position: static;
+          width: 100%;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+          min-height: 68px;
+          padding: 16px 20px;
+        }
+
+        .side-nav {
+          display: flex;
+          overflow-x: auto;
+          padding: 10px 12px;
+        }
+
+        .nav-kicker,
+        .project-identity {
+          display: none;
+        }
+
+        .nav-item {
+          flex: 0 0 auto;
+          border-left: 0;
+          border-bottom: 2px solid transparent;
+        }
+
+        .nav-item.active {
+          border-bottom-color: var(--accent);
+          border-left: 0;
+        }
+
+        .topbar {
+          position: static;
+          flex-wrap: wrap;
+          padding: 16px 20px;
+        }
+
+        .content {
+          padding: 26px 20px 42px;
+        }
+
+        .section-grid,
+        .section-grid.lower,
+        .change-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .planning-top {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        th {
+          top: 0;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .top-actions,
+        .title-row,
+        .planning-controls {
+          width: 100%;
+          align-items: stretch;
+          flex-wrap: wrap;
+        }
+
+        .top-actions .select-wrap,
+        .top-actions .btn {
+          flex: 1 1 135px;
+        }
+
+        select {
+          width: 100%;
+        }
+
+        .metrics {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .metric {
+          border-bottom: 1px solid var(--line);
+        }
+
+        .metric:nth-child(2n) {
+          border-right: 0;
+        }
+
+        .metric:last-child {
+          grid-column: 1 / -1;
+          border-bottom: 0;
+        }
+
+        .portfolio-summary {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .portfolio-stat {
+          min-height: 108px;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .portfolio-stat:nth-child(2n) {
+          border-right: 0;
+        }
+
+        .portfolio-stat:last-child {
+          grid-column: 1 / -1;
+          border-bottom: 0;
+        }
+
+        .planning-controls .select-wrap {
+          flex: 1 1 200px;
+        }
+
+        .planning-alert {
+          grid-template-columns: 1fr;
+          align-items: start;
+          gap: 7px;
+        }
+
+        .snapshot {
+          width: 100%;
+        }
+
+        .wf-row {
+          grid-template-columns: 105px 1fr;
+        }
+
+        .wf-total {
+          display: none;
+        }
+
+        .quality-summary {
+          grid-template-columns: 1fr;
+        }
+
+        .quality-stat {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .quality-stat:last-child {
+          border-bottom: 0;
+        }
+
+        .change-row {
+          grid-template-columns: 1fr;
+          gap: 5px;
+        }
+
+        .change-delta {
+          text-align: left;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="side" aria-label="Навигация по контуру">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div class="brand-copy">
+            <strong>Контур разработки</strong>
+            <span>Инвесторский обзор</span>
+          </div>
+        </div>
+
+        <nav class="side-nav" aria-label="Разделы">
+          <span class="nav-kicker">Контур проекта</span>
+          <button class="nav-item active" data-target="overview" type="button">Обзор</button>
+          <button class="nav-item" data-target="planning" type="button">Планирование</button>
+          <button class="nav-item" data-target="purchases" type="button">Закупки</button>
+          <button class="nav-item" data-target="quality" type="button">Качество и брак</button>
+          <button class="nav-item" data-target="budget" type="button">Бюджет</button>
+          <button class="nav-item" data-target="changes" type="button">Корректировки</button>
+          <button class="nav-item" data-target="reports" type="button">Отчёты</button>
+        </nav>
+
+        <div class="project-identity">
+          <span class="micro-label">Активный портфель</span>
+          <div class="project-code">03 ПРОЕКТА</div>
+          <p>AURORA-02 · ORBIT-01 · NOVA-03<br />Контроль бюджета и сроков</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="breadcrumb" aria-label="Контекст проекта">
+            <strong>Портфель R&D</strong>
+            <span class="crumb-sep">/</span>
+            <span>Силовая электроника</span>
+            <span class="crumb-sep">/</span>
+            <span>AURORA-02</span>
+          </div>
+          <div class="top-actions">
+            <div class="select-wrap">
+              <label for="periodSelect">Период</label>
+              <select id="periodSelect" aria-label="Период отчёта">
+                <option value="q3">Q3 2026</option>
+                <option value="q4">Q4 2026 прогноз</option>
+              </select>
+            </div>
+            <button class="btn primary" id="exportButton" type="button">Сформировать отчёт</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <section id="overview" aria-labelledby="pageTitle">
+            <div class="title-row">
+              <div>
+                <span class="eyebrow">Позиция инвестора</span>
+                <h1 id="pageTitle">Прозрачность расходов по AURORA-02</h1>
+                <p>Опытный образец силового модуля · все значения в EUR</p>
+              </div>
+              <div class="snapshot">
+                <span class="micro-label">Снимок данных</span>
+                <strong id="snapshotDate">04.10.2026 · 18:30 CET</strong>
+              </div>
+            </div>
+
+            <div class="metrics" aria-label="Ключевые показатели">
+              <article class="metric">
+                <div class="metric-label">Базовый план</div>
+                <div class="metric-value" id="metricPlan">€ 1,20M</div>
+                <div class="metric-note">Утверждённая версия B2</div>
+              </article>
+              <article class="metric">
+                <div class="metric-label">Обязательства</div>
+                <div class="metric-value" id="metricCommit">€ 312,4K</div>
+                <div class="metric-note" id="metricCommitNote">14 открытых заказов</div>
+              </article>
+              <article class="metric">
+                <div class="metric-label">Факт</div>
+                <div class="metric-value" id="metricActual">€ 684,2K</div>
+                <div class="metric-note" id="metricActualNote">57,0% освоения</div>
+              </article>
+              <article class="metric accent">
+                <div class="metric-label">Прогноз EAC</div>
+                <div class="metric-value" id="metricEac">€ 1,31M</div>
+                <div class="metric-note" id="metricEacNote">Завершение Q4 2026</div>
+              </article>
+              <article class="metric delta">
+                <div class="metric-label">Отклонение</div>
+                <div class="metric-value" id="metricDelta">+€ 109,7K</div>
+                <div class="metric-note" id="metricDeltaNote">+9,1% к базовому плану</div>
+              </article>
+            </div>
+
+            <div class="section-grid" id="budget">
+              <section class="panel" aria-labelledby="forecastTitle">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">Объяснение прогноза</span>
+                    <h2 id="forecastTitle">Из чего вырос EAC</h2>
+                  </div>
+                  <span class="status risk" id="forecastStatus">ТРЕБУЕТ РЕШЕНИЯ</span>
+                </div>
+                <div class="panel-body">
+                  <div class="waterfall" id="waterfall" aria-label="Факторы изменения прогноза"></div>
+                </div>
+              </section>
+
+              <aside class="panel" aria-labelledby="decisionTitle">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">Риски в фокусе</span>
+                    <h2 id="decisionTitle">Требуют решения</h2>
+                  </div>
+                  <span class="status risk">04</span>
+                </div>
+                <div class="decision-list">
+                  <article class="decision">
+                    <div class="decision-top">
+                      <h3>LOT-032 · входной брак</h3>
+                      <span class="status risk">€ 18,4K</span>
+                    </div>
+                    <p>41 из 240 датчиков отклонены. Рекламация поставщику открыта; решение по замене до 08.10.</p>
+                  </article>
+                  <article class="decision">
+                    <div class="decision-top">
+                      <h3>PO-287 · валютная экспозиция</h3>
+                      <span class="status wait">€ 36,4K</span>
+                    </div>
+                    <p>Неоплаченный остаток в USD. Курс выше базового на 4,7%.</p>
+                  </article>
+                  <article class="decision">
+                    <div class="decision-top">
+                      <h3>CR-08 · повторные испытания</h3>
+                      <span class="status wait">€ 24,8K</span>
+                    </div>
+                    <p>Термоциклирование перенесено на резервный образец после отказа модуля.</p>
+                  </article>
+                </div>
+              </aside>
+            </div>
+
+            <div class="section-grid lower">
+              <section class="panel" aria-labelledby="iterationTitle">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">Исполнение по работам</span>
+                    <h2 id="iterationTitle">Бюджет по итерациям</h2>
+                  </div>
+                  <span class="micro-label">Факт · обязательства · остаток</span>
+                </div>
+                <div class="panel-body">
+                  <div class="iteration-list">
+                    <article class="iteration-row">
+                      <div class="iteration-meta">
+                        <strong>I-03 · Тепловой контур</strong>
+                        <span>План € 252K · EAC € 278K</span>
+                      </div>
+                      <div class="stacked" aria-label="Итерация I-03: факт 206 тысяч, обязательства 48 тысяч, остаток 24 тысячи">
+                        <span class="actual" style="width: 68%"></span>
+                        <span class="commitment" style="width: 16%"></span>
+                        <span class="forecast" style="width: 8%"></span>
+                      </div>
+                      <div class="iteration-legend">
+                        <span>Факт <strong>€ 206K</strong></span>
+                        <span>Обязательства <strong>€ 48K</strong></span>
+                        <span>EAC <strong class="negative">+€ 26K</strong></span>
+                      </div>
+                    </article>
+                    <article class="iteration-row">
+                      <div class="iteration-meta">
+                        <strong>I-04 · Подсистема управления</strong>
+                        <span>План € 340K · EAC € 352K</span>
+                      </div>
+                      <div class="stacked" aria-label="Итерация I-04: факт 219 тысяч, обязательства 121 тысяча, остаток 12 тысяч">
+                        <span class="actual" style="width: 64%"></span>
+                        <span class="commitment" style="width: 26%"></span>
+                        <span class="forecast" style="width: 4%"></span>
+                      </div>
+                      <div class="iteration-legend">
+                        <span>Факт <strong>€ 219K</strong></span>
+                        <span>Обязательства <strong>€ 121K</strong></span>
+                        <span>EAC <strong class="negative">+€ 12K</strong></span>
+                      </div>
+                    </article>
+                    <article class="iteration-row">
+                      <div class="iteration-meta">
+                        <strong>I-05 · Силовой модуль</strong>
+                        <span>План € 284K · EAC € 318K</span>
+                      </div>
+                      <div class="stacked" aria-label="Итерация I-05: факт 164 тысячи, обязательства 94 тысячи, остаток 60 тысяч">
+                        <span class="actual" style="width: 48%"></span>
+                        <span class="commitment" style="width: 28%"></span>
+                        <span class="forecast" style="width: 16%"></span>
+                      </div>
+                      <div class="iteration-legend">
+                        <span>Факт <strong>€ 164K</strong></span>
+                        <span>Обязательства <strong>€ 94K</strong></span>
+                        <span>EAC <strong class="negative">+€ 34K</strong></span>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel" id="quality" aria-labelledby="qualityTitle">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">Качество закупок</span>
+                    <h2 id="qualityTitle">Брак и потери</h2>
+                  </div>
+                  <span class="status risk">3 ОТКРЫТЫХ</span>
+                </div>
+                <div class="quality-summary">
+                  <div class="quality-stat bad">
+                    <span class="micro-label">Валовой брак</span>
+                    <strong>€ 43,6K</strong>
+                  </div>
+                  <div class="quality-stat good">
+                    <span class="micro-label">К возврату</span>
+                    <strong>€ 19,4K</strong>
+                  </div>
+                  <div class="quality-stat accent">
+                    <span class="micro-label">Чистая потеря</span>
+                    <strong>€ 24,2K</strong>
+                  </div>
+                </div>
+                <div class="quality-list">
+                  <div class="quality-row">
+                    <span>Брак поставщика · LOT-032</span>
+                    <strong>€ 18,4K</strong>
+                  </div>
+                  <div class="quality-row">
+                    <span>Неудачная гипотеза · I-05</span>
+                    <strong>€ 16,8K</strong>
+                  </div>
+                  <div class="quality-row">
+                    <span>Повреждение при испытании</span>
+                    <strong>€ 8,4K</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="planning-section" id="planning" aria-labelledby="planningTitle">
+              <div class="planning-top">
+                <div>
+                  <span class="eyebrow">Портфельное планирование</span>
+                  <h2 id="planningTitle">Канбан работ, бюджетов и сроков</h2>
+                  <p id="planningDescription">Пакет работ движется по доске только вместе с ответственным, контрольной датой и финансовым прогнозом.</p>
+                </div>
+                <div class="planning-controls">
+                  <div class="select-wrap">
+                    <label for="planningProjectSelect">Доска</label>
+                    <select id="planningProjectSelect" aria-label="Проект для планирования">
+                      <option value="all">Весь портфель · 3 проекта</option>
+                      <option value="aurora">AURORA-02 · силовой модуль</option>
+                      <option value="orbit">ORBIT-01 · контур навигации</option>
+                      <option value="nova">NOVA-03 · оптический модуль</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="portfolio-summary" aria-label="Показатели выбранной доски">
+                <article class="portfolio-stat">
+                  <span class="micro-label">Объём доски</span>
+                  <strong id="planningScope">03 проекта</strong>
+                  <span id="planningScopeNote">15 пакетов работ</span>
+                </article>
+                <article class="portfolio-stat">
+                  <span class="micro-label">Базовый бюджет</span>
+                  <strong id="planningBase">€ 2,88M</strong>
+                  <span id="planningBaseNote">утверждённые версии</span>
+                </article>
+                <article class="portfolio-stat">
+                  <span class="micro-label">Факт + обязательства</span>
+                  <strong id="planningCommitted">€ 1,97M</strong>
+                  <span id="planningCommittedNote">подтверждено реестрами</span>
+                </article>
+                <article class="portfolio-stat accent">
+                  <span class="micro-label">Прогноз EAC</span>
+                  <strong id="planningEac">€ 3,06M</strong>
+                  <span id="planningEacNote">+€ 179,7K к базовому</span>
+                </article>
+                <article class="portfolio-stat risk">
+                  <span class="micro-label">Ближайшая веха</span>
+                  <strong id="planningDeadline">08.10</strong>
+                  <span id="planningDeadlineNote">04 пакета требуют решения</span>
+                </article>
+              </div>
+
+              <div class="panel planning-alert" aria-label="Ближайшее управленческое решение">
+                <span class="status risk" id="planningAlertStatus">РЕШЕНИЕ ДО 08.10</span>
+                <div>
+                  <strong id="planningAlertTitle">AURORA-02 · замена датчиков LOT-032</strong>
+                  <p id="planningAlertCopy">Без решения по браку € 18,4K нельзя подтвердить срок I-04 и прогноз закупок.</p>
+                </div>
+                <span class="micro-label" id="planningAlertScope">ПОРТФЕЛЬ</span>
+              </div>
+
+              <div class="kanban-shell" aria-label="Канбан-доска проектов">
+                <div class="kanban-board" id="kanbanBoard"></div>
+              </div>
+              <p class="planning-footnote">Карточка — пакет работ или итерация, а не отдельная закупка. По клику открывается связь с бюджетом, сроком, испытаниями и корректировкой.</p>
+            </section>
+
+            <section class="panel table-panel" id="purchases" aria-labelledby="purchaseTitle">
+              <div class="table-toolbar">
+                <div>
+                  <span class="eyebrow">Доказательный слой</span>
+                  <h2 id="purchaseTitle">Реестр закупок и трассировка</h2>
+                  <p>Выберите строку, чтобы раскрыть путь от потребности до решения.</p>
+                </div>
+                <button class="mini-action" id="showIncomplete" type="button">Показать неполные пакеты · 06</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Статус</th>
+                      <th>Закупка</th>
+                      <th>Компонент</th>
+                      <th>Итерация</th>
+                      <th>Принято</th>
+                      <th>Брак</th>
+                      <th>Сумма</th>
+                      <th>Отклонение</th>
+                      <th>Причина</th>
+                      <th>Цепочка</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr data-purchase="PR-104" tabindex="0">
+                      <td><span class="status risk">БРАК</span></td>
+                      <td class="cell-main">PR-104</td>
+                      <td>Температурный датчик TS-48 · Rev C</td>
+                      <td>I-04</td>
+                      <td class="money">199 / 240</td>
+                      <td class="money negative">41</td>
+                      <td class="money">€ 18,4K</td>
+                      <td class="money negative">+€ 7,1K</td>
+                      <td>Входной брак</td>
+                      <td class="trace">PR-104 · LOT-032 · TEST-17 · CR-08</td>
+                    </tr>
+                    <tr data-purchase="PO-287" tabindex="0">
+                      <td><span class="status wait">В ПУТИ</span></td>
+                      <td class="cell-main">PO-287</td>
+                      <td>GaN-модуль GM-84 · Rev B</td>
+                      <td>I-05</td>
+                      <td class="money">60 / 96</td>
+                      <td class="money">—</td>
+                      <td class="money">€ 92,7K</td>
+                      <td class="money negative">+€ 36,4K</td>
+                      <td>Валютный риск</td>
+                      <td class="trace">PR-093 · PO-287 · LOT-041</td>
+                    </tr>
+                    <tr data-purchase="PO-301" tabindex="0">
+                      <td><span class="status ok">ПРИНЯТО</span></td>
+                      <td class="cell-main">PO-301</td>
+                      <td>Теплоотвод MX-21 · Rev A</td>
+                      <td>I-03</td>
+                      <td class="money">28 / 28</td>
+                      <td class="money">0</td>
+                      <td class="money">€ 44,9K</td>
+                      <td class="money">−€ 8,7K</td>
+                      <td>Экономия цены</td>
+                      <td class="trace">PR-088 · PO-301 · LOT-039 · TEST-12</td>
+                    </tr>
+                    <tr data-purchase="PR-119" tabindex="0">
+                      <td><span class="status wait">НЕПОЛНО</span></td>
+                      <td class="cell-main">PR-119</td>
+                      <td>Кабельный жгут серии M</td>
+                      <td>I-03</td>
+                      <td class="money">—</td>
+                      <td class="money">—</td>
+                      <td class="money">€ 12,6K</td>
+                      <td class="money">—</td>
+                      <td>Нет КП</td>
+                      <td class="trace">PR-119 · EXC-04</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <div class="change-grid" id="changes">
+              <section class="panel" aria-labelledby="changesTitle">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">Изменения прогноза</span>
+                    <h2 id="changesTitle">Журнал бюджетных корректировок</h2>
+                  </div>
+                  <span class="micro-label">Согласовано 3 из 4</span>
+                </div>
+                <div class="change-list">
+                  <article class="change-row">
+                    <span class="change-id">BC-026</span>
+                    <div class="change-copy">
+                      <strong>Повторное термоциклирование резервного образца</strong>
+                      <span>CR-08 · решение технического комитета · 03.10.2026</span>
+                    </div>
+                    <span class="change-delta">+€ 24,8K</span>
+                  </article>
+                  <article class="change-row">
+                    <span class="change-id">BC-025</span>
+                    <div class="change-copy">
+                      <strong>Переоценка открытого остатка PO-287 по USD</strong>
+                      <span>Курс +4,7% к базовому · 01.10.2026</span>
+                    </div>
+                    <span class="change-delta">+€ 36,4K</span>
+                  </article>
+                  <article class="change-row">
+                    <span class="change-id">BC-024</span>
+                    <div class="change-copy">
+                      <strong>Брак LOT-032 и повторная закупка датчиков</strong>
+                      <span>Рекламация SUP-12 открыта · 29.09.2026</span>
+                    </div>
+                    <span class="change-delta">+€ 18,4K</span>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel" id="reports" aria-labelledby="reportsTitle">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">Зафиксированные версии</span>
+                    <h2 id="reportsTitle">Отчётные снимки</h2>
+                  </div>
+                </div>
+                <div class="report-list">
+                  <article class="report-row">
+                    <strong>RPT-026 · Инвесторский обзор</strong>
+                    <span>04.10.2026 · PDF / Word · B2 / EAC-07</span>
+                  </article>
+                  <article class="report-row">
+                    <strong>RPT-025 · Реестр брака и возмещений</strong>
+                    <span>03.10.2026 · Excel · LOT-032 / SUP-12</span>
+                  </article>
+                  <article class="report-row">
+                    <strong>RPT-024 · Исполнение бюджета</strong>
+                    <span>30.09.2026 · Excel · Q3 2026</span>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <p class="footer-note">
+              Демонстрационные данные. Контур отражает управленческий факт, обязательства и прогноз отдельно от бухгалтерской проводки.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <aside class="drawer" id="drawer" aria-labelledby="drawerTitle" aria-hidden="true">
+      <div class="drawer-head">
+        <div>
+          <span class="eyebrow">Сквозная цепочка расхода</span>
+          <h2 id="drawerTitle">PR-104 · температурные датчики</h2>
+        </div>
+        <button class="close" id="closeDrawer" type="button" aria-label="Закрыть детали">×</button>
+      </div>
+      <div class="drawer-body" id="drawerBody"></div>
+    </aside>
+
+    <aside class="drawer planning-drawer" id="planningDrawer" aria-labelledby="planningDrawerTitle" aria-hidden="true">
+      <div class="drawer-head">
+        <div>
+          <span class="eyebrow">Пакет работ · бюджет и срок</span>
+          <h2 id="planningDrawerTitle">I-04 · Подсистема управления</h2>
+        </div>
+        <button class="close" id="closePlanningDrawer" type="button" aria-label="Закрыть детали планирования">×</button>
+      </div>
+      <div class="drawer-body" id="planningDrawerBody"></div>
+    </aside>
+
+    <dialog id="reportDialog" aria-labelledby="reportDialogTitle">
+      <div class="dialog-head">
+        <span class="eyebrow">Новый снимок</span>
+        <h2 id="reportDialogTitle">Сформировать отчёт</h2>
+      </div>
+      <div class="dialog-body">
+        <p>Будут зафиксированы закупки, бюджетные корректировки, открытые исключения и выбранная канбан-доска со сроками пакетов работ.</p>
+        <div class="select-wrap">
+          <label for="reportFormat">Формат</label>
+          <select id="reportFormat">
+            <option value="word">Word · инвесторский обзор</option>
+            <option value="excel">Excel · детализация расходов</option>
+            <option value="pdf">PDF · зафиксированный снимок</option>
+          </select>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" id="cancelReport" type="button">Отмена</button>
+        <button class="btn primary" id="createReport" type="button">Зафиксировать снимок</button>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const dashboardData = {
+        q3: {
+          snapshot: "04.10.2026 · 18:30 CET",
+          plan: "€ 1,20M",
+          commitment: "€ 312,4K",
+          commitmentNote: "14 открытых заказов",
+          actual: "€ 684,2K",
+          actualNote: "57,0% освоения",
+          eac: "€ 1,31M",
+          eacNote: "Завершение Q4 2026",
+          delta: "+€ 109,7K",
+          deltaNote: "+9,1% к базовому плану",
+          waterfall: [
+            { name: "Базовый план", value: 1200, total: 1200, kind: "base", label: "€ 1,20M" },
+            { name: "Курс USD/EUR", value: 36.4, total: 1236.4, kind: "plus", label: "+€ 36,4K" },
+            { name: "Цена поставщика", value: 22, total: 1258.4, kind: "plus", label: "+€ 22,0K" },
+            { name: "Количество", value: 16.8, total: 1275.2, kind: "plus", label: "+€ 16,8K" },
+            { name: "Брак и списание", value: 18.4, total: 1293.6, kind: "plus", label: "+€ 18,4K" },
+            { name: "Повторные испытания", value: 24.8, total: 1318.4, kind: "plus", label: "+€ 24,8K" },
+            { name: "Экономия по PO-301", value: -8.7, total: 1309.7, kind: "minus", label: "−€ 8,7K" },
+            { name: "Текущий EAC", value: 1309.7, total: 1309.7, kind: "total", label: "€ 1,31M" }
+          ]
+        },
+        q4: {
+          snapshot: "14.12.2026 · 09:00 CET",
+          plan: "€ 1,20M",
+          commitment: "€ 228,5K",
+          commitmentNote: "8 открытых заказов",
+          actual: "€ 948,1K",
+          actualNote: "79,0% освоения",
+          eac: "€ 1,34M",
+          eacNote: "Закрытие проекта Q1 2027",
+          delta: "+€ 135,0K",
+          deltaNote: "+11,3% к базовому плану",
+          waterfall: [
+            { name: "Базовый план", value: 1200, total: 1200, kind: "base", label: "€ 1,20M" },
+            { name: "Курс USD/EUR", value: 31.2, total: 1231.2, kind: "plus", label: "+€ 31,2K" },
+            { name: "Цена поставщика", value: 27.1, total: 1258.3, kind: "plus", label: "+€ 27,1K" },
+            { name: "Количество", value: 18.8, total: 1277.1, kind: "plus", label: "+€ 18,8K" },
+            { name: "Брак и списание", value: 22.5, total: 1299.6, kind: "plus", label: "+€ 22,5K" },
+            { name: "Повторные испытания", value: 31.6, total: 1331.2, kind: "plus", label: "+€ 31,6K" },
+            { name: "Экономия по повторной закупке", value: -3.8, total: 1327.4, kind: "minus", label: "−€ 3,8K" },
+            { name: "Текущий EAC", value: 1327.4, total: 1327.4, kind: "total", label: "€ 1,34M" }
+          ]
+        }
+      };
+
+      const planningStages = [
+        { id: "approval", label: "К утверждению", note: "База и резерв ожидают решения" },
+        { id: "work", label: "В работе", note: "Есть факт, обязательства или заказ" },
+        { id: "verification", label: "На верификации", note: "Испытание, приёмка или протокол" },
+        { id: "decision", label: "Требует решения", note: "Блокер срока, бюджета или комплекта" },
+        { id: "closed", label: "Закрыто", note: "Результат и прогноз зафиксированы" }
+      ];
+
+      const planningProjects = {
+        aurora: {
+          code: "AURORA-02",
+          name: "Силовой модуль",
+          direction: "Силовая электроника",
+          base: 1200,
+          actual: 684.2,
+          commitments: 312.4,
+          eac: 1309.7,
+          finish: "14.01.2027",
+          riskCount: 2,
+          alertCard: "aurora-control"
+        },
+        orbit: {
+          code: "ORBIT-01",
+          name: "Контур навигации",
+          direction: "Автономные системы",
+          base: 880,
+          actual: 432.1,
+          commitments: 148.6,
+          eac: 952,
+          finish: "15.03.2027",
+          riskCount: 1,
+          alertCard: "orbit-pcb"
+        },
+        nova: {
+          code: "NOVA-03",
+          name: "Оптический модуль",
+          direction: "Оптическая диагностика",
+          base: 800,
+          actual: 286.5,
+          commitments: 108.3,
+          eac: 798,
+          finish: "21.12.2026",
+          riskCount: 1,
+          alertCard: "nova-coating"
+        }
+      };
+
+      const planningCards = [
+        {
+          id: "aurora-dfm",
+          project: "aurora",
+          stage: "approval",
+          code: "I-06",
+          title: "Корректировка DFM корпуса",
+          owner: "И. Панин · конструктор",
+          baseline: "17.10.2026",
+          forecast: "24.10.2026",
+          due: "2026-10-24",
+          plan: 54,
+          actual: 6,
+          commitments: 18,
+          eac: 54,
+          health: "wait",
+          healthText: "ожидает КД",
+          reason: "Выпуск Rev D после замечаний к сборке.",
+          links: ["DOC-041", "CR-09"]
+        },
+        {
+          id: "aurora-power",
+          project: "aurora",
+          stage: "work",
+          code: "I-05",
+          title: "Силовой модуль GaN",
+          owner: "Е. Белова · системный инженер",
+          baseline: "30.11.2026",
+          forecast: "14.12.2026",
+          due: "2026-12-14",
+          plan: 284,
+          actual: 164,
+          commitments: 94,
+          eac: 318,
+          health: "risk",
+          healthText: "+14 дн. · валютный риск",
+          reason: "PO-287 в USD и повторное термоциклирование.",
+          links: ["PO-287", "LOT-041", "BC-025"]
+        },
+        {
+          id: "aurora-thermal",
+          project: "aurora",
+          stage: "verification",
+          code: "I-03",
+          title: "Тепловой контур",
+          owner: "А. Лебедев · испытания",
+          baseline: "10.10.2026",
+          forecast: "18.10.2026",
+          due: "2026-10-18",
+          plan: 252,
+          actual: 206,
+          commitments: 48,
+          eac: 278,
+          health: "wait",
+          healthText: "+8 дн. · TEST-12",
+          reason: "Закрытие протокола после контрольного цикла.",
+          links: ["PO-301", "TEST-12", "RPT-024"]
+        },
+        {
+          id: "aurora-control",
+          project: "aurora",
+          stage: "decision",
+          code: "I-04",
+          title: "Подсистема управления",
+          owner: "М. Воронова · закупки",
+          baseline: "08.10.2026",
+          forecast: "14.10.2026",
+          due: "2026-10-08",
+          plan: 340,
+          actual: 219,
+          commitments: 121,
+          eac: 352,
+          health: "risk",
+          healthText: "решение до 08.10",
+          reason: "LOT-032: 41 датчик отклонён; нужна замена и рекламация.",
+          links: ["PR-104", "LOT-032", "TEST-17", "BC-024"]
+        },
+        {
+          id: "aurora-base",
+          project: "aurora",
+          stage: "closed",
+          code: "I-02",
+          title: "Архитектурная база B2",
+          owner: "Д. Романов · руководитель проекта",
+          baseline: "15.09.2026",
+          forecast: "15.09.2026",
+          due: "2026-09-15",
+          plan: 168,
+          actual: 164,
+          commitments: 0,
+          eac: 164,
+          health: "ok",
+          healthText: "снимок зафиксирован",
+          reason: "Базовая версия бюджета и состава изделия утверждена.",
+          links: ["B2", "RPT-021"]
+        },
+        {
+          id: "orbit-map",
+          project: "orbit",
+          stage: "approval",
+          code: "I-03",
+          title: "Карта среды v2",
+          owner: "К. Миронов · алгоритмы",
+          baseline: "25.10.2026",
+          forecast: "29.10.2026",
+          due: "2026-10-29",
+          plan: 102,
+          actual: 18,
+          commitments: 24,
+          eac: 106,
+          health: "wait",
+          healthText: "ожидает комитета",
+          reason: "Бюджет на вычислительный стенд ждёт утверждения.",
+          links: ["CR-14", "CAP-03"]
+        },
+        {
+          id: "orbit-nav",
+          project: "orbit",
+          stage: "work",
+          code: "I-02",
+          title: "Контур навигации",
+          owner: "П. Орлов · embedded",
+          baseline: "18.10.2026",
+          forecast: "22.10.2026",
+          due: "2026-10-22",
+          plan: 410,
+          actual: 236,
+          commitments: 76,
+          eac: 398,
+          health: "ok",
+          healthText: "−€ 12K к плану",
+          reason: "Экономия на плате после объединения ревизий.",
+          links: ["PCB-018", "BC-031"]
+        },
+        {
+          id: "orbit-emi",
+          project: "orbit",
+          stage: "verification",
+          code: "I-04",
+          title: "EMC предиспытания",
+          owner: "С. Ершов · лаборатория",
+          baseline: "16.10.2026",
+          forecast: "19.10.2026",
+          due: "2026-10-19",
+          plan: 84,
+          actual: 51,
+          commitments: 22,
+          eac: 86,
+          health: "wait",
+          healthText: "+3 дн. · слот лаборатории",
+          reason: "Лаборатория перенесла приём на три дня.",
+          links: ["TEST-28", "LAB-05"]
+        },
+        {
+          id: "orbit-pcb",
+          project: "orbit",
+          stage: "decision",
+          code: "I-05",
+          title: "Плата управления Rev C",
+          owner: "О. Фёдорова · электроника",
+          baseline: "11.10.2026",
+          forecast: "25.10.2026",
+          due: "2026-10-11",
+          plan: 96,
+          actual: 62,
+          commitments: 31,
+          eac: 108,
+          health: "risk",
+          healthText: "решение до 11.10",
+          reason: "Нужна развилка: доработка платы или повторный заказ.",
+          links: ["LOT-091", "EXC-11", "BC-032"]
+        },
+        {
+          id: "orbit-spec",
+          project: "orbit",
+          stage: "closed",
+          code: "I-01",
+          title: "Требования и трассировка",
+          owner: "Н. Гребнева · системный анализ",
+          baseline: "30.09.2026",
+          forecast: "30.09.2026",
+          due: "2026-09-30",
+          plan: 72,
+          actual: 70,
+          commitments: 0,
+          eac: 70,
+          health: "ok",
+          healthText: "версия R1",
+          reason: "Требования и матрица проверок зафиксированы.",
+          links: ["REQ-R1", "V&V-01"]
+        },
+        {
+          id: "nova-optics",
+          project: "nova",
+          stage: "approval",
+          code: "I-01",
+          title: "Прототип оптического тракта",
+          owner: "В. Ларина · оптика",
+          baseline: "05.11.2026",
+          forecast: "12.11.2026",
+          due: "2026-11-12",
+          plan: 164,
+          actual: 12,
+          commitments: 43,
+          eac: 164,
+          health: "wait",
+          healthText: "базовая версия B1",
+          reason: "Выбор состава линз и сенсора ждёт утверждения B1.",
+          links: ["B1", "PR-211"]
+        },
+        {
+          id: "nova-sensor",
+          project: "nova",
+          stage: "work",
+          code: "I-02",
+          title: "Закупка сенсора спектра",
+          owner: "Р. Ким · закупки",
+          baseline: "21.10.2026",
+          forecast: "21.10.2026",
+          due: "2026-10-21",
+          plan: 118,
+          actual: 59,
+          commitments: 46,
+          eac: 116,
+          health: "ok",
+          healthText: "−€ 2K к плану",
+          reason: "Цена закреплена в договоре, партия в производстве.",
+          links: ["PO-412", "FX-08"]
+        },
+        {
+          id: "nova-calibration",
+          project: "nova",
+          stage: "verification",
+          code: "I-03",
+          title: "Калибровка измерительного канала",
+          owner: "Т. Соколова · метрология",
+          baseline: "28.10.2026",
+          forecast: "31.10.2026",
+          due: "2026-10-31",
+          plan: 96,
+          actual: 38,
+          commitments: 17,
+          eac: 96,
+          health: "wait",
+          healthText: "+3 дн. · эталон",
+          reason: "Эталонный источник доступен после 28.10.",
+          links: ["TEST-44", "CAL-02"]
+        },
+        {
+          id: "nova-coating",
+          project: "nova",
+          stage: "decision",
+          code: "I-04",
+          title: "Покрытие оптического окна",
+          owner: "Л. Сергеева · материалы",
+          baseline: "12.10.2026",
+          forecast: "26.10.2026",
+          due: "2026-10-12",
+          plan: 72,
+          actual: 24,
+          commitments: 15,
+          eac: 84,
+          health: "risk",
+          healthText: "решение до 12.10",
+          reason: "Два поставщика дали разные характеристики стойкости.",
+          links: ["SUP-27", "TEST-41", "BC-041"]
+        },
+        {
+          id: "nova-feasibility",
+          project: "nova",
+          stage: "closed",
+          code: "I-00",
+          title: "Технико-экономическая оценка",
+          owner: "Е. Титова · PMO",
+          baseline: "20.09.2026",
+          forecast: "20.09.2026",
+          due: "2026-09-20",
+          plan: 46,
+          actual: 45,
+          commitments: 0,
+          eac: 45,
+          health: "ok",
+          healthText: "гипотеза подтверждена",
+          reason: "Граница проекта и начальная оценка утверждены.",
+          links: ["TEO-03", "RPT-018"]
+        }
+      ];
+
+      const purchaseDetails = {
+        "PR-104": {
+          title: "PR-104 · температурные датчики",
+          state: "Входной брак · решение до 08.10",
+          note: "41 из 240 датчиков не прошли входной контроль. Возмещение от поставщика ожидается; резервная партия включена в прогноз.",
+          trace: [
+            ["Потребность", "PR-104 · I-04 · € 11,3K"],
+            ["Заказ", "PO-294 · поставщик NordSense"],
+            ["Лот", "LOT-032 · 240 шт. · € 18,4K"],
+            ["Контроль", "TEST-17 · 199 принято / 41 отклонено"],
+            ["Решение", "CR-08 · повторная закупка и рекламация"],
+            ["Прогноз", "BC-024 · +€ 18,4K до возмещения"]
+          ]
+        },
+        "PO-287": {
+          title: "PO-287 · GaN-модули",
+          state: "В пути · валютный риск",
+          note: "Неоплаченный остаток в USD пересчитан по текущему утверждённому сценарию курса. Поставка второй партии ожидается в ноябре.",
+          trace: [
+            ["Потребность", "PR-093 · I-05 · силовой модуль"],
+            ["Заказ", "PO-287 · 96 шт. · USD 101 400"],
+            ["Поставка", "LOT-041 · 60 шт. принято"],
+            ["Остаток", "36 шт. · обязательство € 36,4K"],
+            ["Корректировка", "BC-025 · курс +4,7%"],
+            ["Прогноз", "EAC I-05 · +€ 34,0K"]
+          ]
+        },
+        "PO-301": {
+          title: "PO-301 · теплоотводы MX-21",
+          state: "Принято · экономия подтверждена",
+          note: "Поставка принята полностью, результат термоиспытаний соответствует методике TEST-12. Экономия снижает EAC и фиксируется отдельной записью.",
+          trace: [
+            ["Потребность", "PR-088 · I-03 · тепловой контур"],
+            ["Заказ", "PO-301 · 28 шт. · € 44,9K"],
+            ["Лот", "LOT-039 · 28 шт. принято"],
+            ["Испытание", "TEST-12 · пройдено"],
+            ["Решение", "Закрыть потребность"],
+            ["Прогноз", "Экономия −€ 8,7K"]
+          ]
+        },
+        "PR-119": {
+          title: "PR-119 · кабельный жгут серии M",
+          state: "Неполный закупочный пакет",
+          note: "Для заявки нет коммерческого предложения. Оформлено временное исключение EXC-04 с владельцем и сроком закрытия.",
+          trace: [
+            ["Потребность", "PR-119 · I-03 · € 12,6K"],
+            ["Комплект", "КП отсутствует"],
+            ["Исключение", "EXC-04 · до 09.10.2026"],
+            ["Ответственный", "Закупки · М. Воронова"],
+            ["Статус", "Заказ не разрешён"],
+            ["Влияние", "Резерв € 12,6K"]
+          ]
+        }
+      };
+
+      let selectedPeriod = "q3";
+      let selectedPlanningProject = "all";
+      let toastTimeout;
+      const drawer = document.getElementById("drawer");
+      const drawerTitle = document.getElementById("drawerTitle");
+      const drawerBody = document.getElementById("drawerBody");
+      const planningDrawer = document.getElementById("planningDrawer");
+      const planningDrawerTitle = document.getElementById("planningDrawerTitle");
+      const planningDrawerBody = document.getElementById("planningDrawerBody");
+      const toast = document.getElementById("toast");
+
+      function formatMoney(value) {
+        const absolute = Math.abs(value);
+        const separator = absolute >= 1000 ? 2 : absolute % 1 === 0 ? 0 : 1;
+        const rendered = (absolute >= 1000 ? absolute / 1000 : absolute).toFixed(separator).replace(".", ",");
+        return "€ " + rendered + (absolute >= 1000 ? "M" : "K");
+      }
+
+      function formatDelta(value) {
+        return (value < 0 ? "−" : "+") + formatMoney(Math.abs(value));
+      }
+
+      function activePlanningProjectIds() {
+        return selectedPlanningProject === "all" ? Object.keys(planningProjects) : [selectedPlanningProject];
+      }
+
+      function selectedPlanningCards() {
+        const ids = activePlanningProjectIds();
+        return planningCards.filter(function (card) {
+          return ids.includes(card.project);
+        });
+      }
+
+      function planningTotals() {
+        const ids = activePlanningProjectIds();
+        return ids.reduce(
+          function (total, id) {
+            const project = planningProjects[id];
+            total.base += project.base;
+            total.actual += project.actual;
+            total.commitments += project.commitments;
+            total.eac += project.eac;
+            total.riskCount += project.riskCount;
+            return total;
+          },
+          { base: 0, actual: 0, commitments: 0, eac: 0, riskCount: 0 }
+        );
+      }
+
+      function nearestDecisionCard(cards) {
+        return cards
+          .filter(function (card) {
+            return card.stage === "decision";
+          })
+          .sort(function (left, right) {
+            return left.due.localeCompare(right.due);
+          })[0];
+      }
+
+      function renderPlanCard(card) {
+        const project = planningProjects[card.project];
+        const shift = card.eac - card.plan;
+        const status = card.health === "risk" ? "risk" : card.health === "wait" ? "wait" : "ok";
+        return (
+          '<button class="kanban-card ' +
+          status +
+          '" type="button" data-plan-card="' +
+          card.id +
+          '" aria-label="Открыть пакет ' +
+          card.code +
+          ": " +
+          card.title +
+          '">' +
+          '<span class="card-project">' +
+          project.code +
+          " · " +
+          card.code +
+          "</span>" +
+          "<h3>" +
+          card.title +
+          "</h3>" +
+          '<span class="card-owner">' +
+          card.owner +
+          "</span>" +
+          '<div class="card-due ' +
+          status +
+          '"><span>База ' +
+          card.baseline +
+          "</span><strong>Прогноз " +
+          card.forecast +
+          "</strong></div>" +
+          '<div class="card-budget">' +
+          "<span><em>План</em><strong>" +
+          formatMoney(card.plan) +
+          "</strong></span>" +
+          "<span><em>Факт</em><strong>" +
+          formatMoney(card.actual) +
+          "</strong></span>" +
+          "<span><em>Обяз.</em><strong>" +
+          formatMoney(card.commitments) +
+          "</strong></span>" +
+          '<span class="forecast"><em>EAC ' +
+          formatDelta(shift) +
+          "</em><strong>" +
+          formatMoney(card.eac) +
+          "</strong></span>" +
+          "</div>" +
+          '<div class="card-bottom"><span class="status ' +
+          status +
+          '">' +
+          card.healthText +
+          '</span><span class="card-links">' +
+          card.links.join(" · ") +
+          "</span></div>" +
+          "</button>"
+        );
+      }
+
+      function renderPlanning() {
+        const ids = activePlanningProjectIds();
+        const cards = selectedPlanningCards();
+        const totals = planningTotals();
+        const scopeProject = selectedPlanningProject === "all" ? null : planningProjects[selectedPlanningProject];
+        const decision = nearestDecisionCard(cards);
+        const projectName = scopeProject ? scopeProject.code + " · " + scopeProject.name : "Весь портфель";
+
+        document.getElementById("planningScope").textContent =
+          selectedPlanningProject === "all" ? String(ids.length).padStart(2, "0") + " проекта" : scopeProject.code;
+        document.getElementById("planningScopeNote").textContent =
+          cards.length + " пакетов работ · " + projectName;
+        document.getElementById("planningBase").textContent = formatMoney(totals.base);
+        document.getElementById("planningBaseNote").textContent =
+          selectedPlanningProject === "all" ? "утверждённые базовые версии" : "база проекта";
+        document.getElementById("planningCommitted").textContent = formatMoney(totals.actual + totals.commitments);
+        document.getElementById("planningCommittedNote").textContent =
+          "факт " + formatMoney(totals.actual) + " · обязательства " + formatMoney(totals.commitments);
+        document.getElementById("planningEac").textContent = formatMoney(totals.eac);
+        document.getElementById("planningEacNote").textContent = formatDelta(totals.eac - totals.base) + " к базовому бюджету";
+        document.getElementById("planningDeadline").textContent = decision ? decision.baseline.slice(0, 5) : "—";
+        document.getElementById("planningDeadlineNote").textContent =
+          totals.riskCount + " пакета требуют решения";
+        document.getElementById("planningDescription").textContent =
+          selectedPlanningProject === "all"
+            ? "Сравнивайте проекты по одним правилам: пакет работ, контрольная дата, план, факт, обязательства и EAC."
+            : scopeProject.direction + " · базовое завершение " + scopeProject.finish + ". Каждый пакет связан с доказательной цепочкой.";
+
+        if (decision) {
+          const decisionProject = planningProjects[decision.project];
+          document.getElementById("planningAlertStatus").textContent = "РЕШЕНИЕ ДО " + decision.baseline.slice(0, 5);
+          document.getElementById("planningAlertTitle").textContent =
+            decisionProject.code + " · " + decision.title;
+          document.getElementById("planningAlertCopy").textContent =
+            decision.reason + " Влияние на EAC: " + formatDelta(decision.eac - decision.plan) + ".";
+          document.getElementById("planningAlertScope").textContent =
+            selectedPlanningProject === "all" ? "ПОРТФЕЛЬ" : decisionProject.code;
+        }
+
+        document.getElementById("kanbanBoard").innerHTML = planningStages
+          .map(function (stage) {
+            const stageCards = cards.filter(function (card) {
+              return card.stage === stage.id;
+            });
+            return (
+              '<section class="kanban-column" aria-labelledby="stage-' +
+              stage.id +
+              '">' +
+              '<div class="kanban-column-head"><div><span class="eyebrow">Статус пакета</span><h3 id="stage-' +
+              stage.id +
+              '">' +
+              stage.label +
+              "</h3><p>" +
+              stage.note +
+              '</p></div><span class="kanban-count">' +
+              String(stageCards.length).padStart(2, "0") +
+              "</span></div>" +
+              '<div class="kanban-cards">' +
+              stageCards.map(renderPlanCard).join("") +
+              "</div></section>"
+            );
+          })
+          .join("");
+      }
+
+      function planningSnapshot() {
+        const totals = planningTotals();
+        const cards = selectedPlanningCards();
+        const decision = nearestDecisionCard(cards);
+        return {
+          scope: selectedPlanningProject,
+          projects: activePlanningProjectIds().map(function (id) {
+            return planningProjects[id].code;
+          }),
+          workPackages: cards.length,
+          baseBudget: formatMoney(totals.base),
+          actual: formatMoney(totals.actual),
+          commitments: formatMoney(totals.commitments),
+          eac: formatMoney(totals.eac),
+          variance: formatDelta(totals.eac - totals.base),
+          atRisk: totals.riskCount,
+          nextDecision: decision
+            ? { package: planningProjects[decision.project].code + " · " + decision.code, deadline: decision.baseline }
+            : null
+        };
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function () {
+          toast.classList.remove("show");
+        }, 3600);
+      }
+
+      function renderWaterfall(items) {
+        const max = 1400;
+        const container = document.getElementById("waterfall");
+        container.innerHTML = "";
+        items.forEach(function (item) {
+          const row = document.createElement("div");
+          row.className = "wf-row";
+          const width = Math.max(2, Math.min(100, Math.round((Math.abs(item.value) / max) * 100)));
+          const cumulative = "Итого € " + item.total.toFixed(1).replace(".", ",") + "K";
+          row.innerHTML =
+            '<span class="wf-name">' +
+            item.name +
+            '</span><div class="wf-track"><span class="wf-bar ' +
+            item.kind +
+            '" style="width:' +
+            width +
+            '%"></span></div><span class="wf-value">' +
+            item.label +
+            '</span><span class="wf-total">' +
+            cumulative +
+            "</span>";
+          container.appendChild(row);
+        });
+      }
+
+      function applyPeriod(period) {
+        selectedPeriod = period;
+        const data = dashboardData[period];
+        document.getElementById("snapshotDate").textContent = data.snapshot;
+        document.getElementById("metricPlan").textContent = data.plan;
+        document.getElementById("metricCommit").textContent = data.commitment;
+        document.getElementById("metricCommitNote").textContent = data.commitmentNote;
+        document.getElementById("metricActual").textContent = data.actual;
+        document.getElementById("metricActualNote").textContent = data.actualNote;
+        document.getElementById("metricEac").textContent = data.eac;
+        document.getElementById("metricEacNote").textContent = data.eacNote;
+        document.getElementById("metricDelta").textContent = data.delta;
+        document.getElementById("metricDeltaNote").textContent = data.deltaNote;
+        document.getElementById("forecastStatus").textContent = period === "q3" ? "ТРЕБУЕТ РЕШЕНИЯ" : "ПРОГНОЗ ОБНОВЛЁН";
+        renderWaterfall(data.waterfall);
+        renderPlanning();
+      }
+
+      function openPurchaseTrace(id) {
+        const item = purchaseDetails[id];
+        if (!item) {
+          throw new Error("Запись закупки не найдена");
+        }
+        closePlanningDrawer();
+        drawerTitle.textContent = item.title;
+        const rows = item.trace
+          .map(function (step) {
+            return '<div class="trace-step"><span>' + step[0] + "</span><strong>" + step[1] + "</strong></div>";
+          })
+          .join("");
+        drawerBody.innerHTML =
+          '<span class="status wait">' +
+          item.state +
+          '</span><div class="trace-flow">' +
+          rows +
+          '</div><div class="drawer-note">' +
+          item.note +
+          "</div>";
+        drawer.classList.add("open");
+        drawer.setAttribute("aria-hidden", "false");
+        document.getElementById("closeDrawer").focus();
+      }
+
+      function closeDrawer() {
+        drawer.classList.remove("open");
+        drawer.setAttribute("aria-hidden", "true");
+      }
+
+      function openPlanningCard(id) {
+        const card = planningCards.find(function (item) {
+          return item.id === id;
+        });
+        if (!card) {
+          throw new Error("Пакет работ не найден");
+        }
+        const project = planningProjects[card.project];
+        const status = card.health === "risk" ? "risk" : card.health === "wait" ? "wait" : "ok";
+        const rows = [
+          ["Проект", project.code + " · " + project.direction],
+          ["Владелец", card.owner],
+          ["Срок", "База " + card.baseline + " · прогноз " + card.forecast],
+          ["Бюджет", "План " + formatMoney(card.plan) + " · факт " + formatMoney(card.actual) + " · обязательства " + formatMoney(card.commitments)],
+          ["Прогноз", "EAC " + formatMoney(card.eac) + " · " + formatDelta(card.eac - card.plan) + " к плану"],
+          ["Цепочка", card.links.join(" · ")]
+        ];
+        const trace = rows
+          .map(function (row) {
+            return '<div class="trace-step"><span>' + row[0] + "</span><strong>" + row[1] + "</strong></div>";
+          })
+          .join("");
+        closeDrawer();
+        planningDrawerTitle.textContent = project.code + " · " + card.code + " · " + card.title;
+        planningDrawerBody.innerHTML =
+          '<span class="status ' +
+          status +
+          '">' +
+          card.healthText +
+          '</span><div class="trace-flow">' +
+          trace +
+          '</div><div class="drawer-note">' +
+          card.reason +
+          "</div>";
+        planningDrawer.classList.add("open");
+        planningDrawer.setAttribute("aria-hidden", "false");
+        document.getElementById("closePlanningDrawer").focus();
+      }
+
+      function closePlanningDrawer() {
+        planningDrawer.classList.remove("open");
+        planningDrawer.setAttribute("aria-hidden", "true");
+      }
+
+      document.getElementById("periodSelect").addEventListener("change", function (event) {
+        applyPeriod(event.target.value);
+        showToast("Период обновлён. Экран показывает " + event.target.options[event.target.selectedIndex].text + ".");
+      });
+
+      document.getElementById("planningProjectSelect").addEventListener("change", function (event) {
+        selectedPlanningProject = event.target.value;
+        renderPlanning();
+        const label = event.target.options[event.target.selectedIndex].text;
+        showToast("Доска обновлена: " + label + ".");
+      });
+
+      document.querySelectorAll(".nav-item").forEach(function (button) {
+        button.addEventListener("click", function () {
+          document.querySelectorAll(".nav-item").forEach(function (item) {
+            item.classList.remove("active");
+          });
+          button.classList.add("active");
+          const target = document.getElementById(button.dataset.target);
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+
+      document.querySelectorAll("tbody tr[data-purchase]").forEach(function (row) {
+        row.addEventListener("click", function () {
+          openPurchaseTrace(row.dataset.purchase);
+        });
+        row.addEventListener("keydown", function (event) {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPurchaseTrace(row.dataset.purchase);
+          }
+        });
+      });
+
+      document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
+      document.getElementById("closePlanningDrawer").addEventListener("click", closePlanningDrawer);
+      document.getElementById("kanbanBoard").addEventListener("click", function (event) {
+        const card = event.target.closest("[data-plan-card]");
+        if (card) {
+          openPlanningCard(card.dataset.planCard);
+        }
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeDrawer();
+          closePlanningDrawer();
+        }
+      });
+
+      document.getElementById("showIncomplete").addEventListener("click", function () {
+        openPurchaseTrace("PR-119");
+      });
+
+      const reportDialog = document.getElementById("reportDialog");
+      document.getElementById("exportButton").addEventListener("click", function () {
+        reportDialog.showModal();
+      });
+      document.getElementById("cancelReport").addEventListener("click", function () {
+        reportDialog.close();
+      });
+      document.getElementById("createReport").addEventListener("click", function () {
+        const format = document.getElementById("reportFormat").value;
+        const formatName = { word: "Word", excel: "Excel", pdf: "PDF" }[format];
+        const planning = planningSnapshot();
+        reportDialog.close();
+        showToast(
+          "Снимок RPT-027 зафиксирован. Формат: " +
+            formatName +
+            "; период: " +
+            document.getElementById("periodSelect").options[document.getElementById("periodSelect").selectedIndex].text +
+            "; пакетов на доске: " +
+            planning.workPackages +
+            "."
+        );
+      });
+
+      function investorSnapshot() {
+        const data = dashboardData[selectedPeriod];
+        return {
+          project: "AURORA-02",
+          period: selectedPeriod,
+          plan: data.plan,
+          commitments: data.commitment,
+          actual: data.actual,
+          eac: data.eac,
+          variance: data.delta,
+          snapshotAt: data.snapshot,
+          planning: planningSnapshot()
+        };
+      }
+
+      function registerWebMCP() {
+        const context = document.modelContext;
+        if (!context || !context.registerTool) {
+          return;
+        }
+        const lifecycle = new AbortController();
+        const register = function (tool) {
+          Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })).catch(function () {});
+        };
+        register({
+          name: "get_investor_snapshot",
+          title: "Получить инвесторский снимок",
+          description: "Возвращает текущие ключевые показатели проекта AURORA-02.",
+          inputSchema: { type: "object", properties: {}, additionalProperties: false },
+          annotations: { readOnlyHint: true, untrustedContentHint: false },
+          execute: function () {
+            return investorSnapshot();
+          }
+        });
+        register({
+          name: "set_dashboard_period",
+          title: "Изменить период обзора",
+          description: "Переключает демонстрационный обзор между Q3 2026 и прогнозом Q4 2026.",
+          inputSchema: {
+            type: "object",
+            properties: { period: { type: "string", enum: ["q3", "q4"] } },
+            required: ["period"],
+            additionalProperties: false
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute: function (input) {
+            if (!input || (input.period !== "q3" && input.period !== "q4")) {
+              throw new Error("Допустимы периоды q3 и q4");
+            }
+            document.getElementById("periodSelect").value = input.period;
+            applyPeriod(input.period);
+            return investorSnapshot();
+          }
+        });
+        register({
+          name: "get_planning_board",
+          title: "Получить планирование портфеля",
+          description: "Возвращает бюджет, прогноз, ближайшее решение и состав выбранной канбан-доски.",
+          inputSchema: { type: "object", properties: {}, additionalProperties: false },
+          annotations: { readOnlyHint: true, untrustedContentHint: false },
+          execute: function () {
+            return planningSnapshot();
+          }
+        });
+        register({
+          name: "set_planning_project",
+          title: "Изменить доску планирования",
+          description: "Переключает канбан между всем портфелем и проектами AURORA-02, ORBIT-01, NOVA-03.",
+          inputSchema: {
+            type: "object",
+            properties: { project: { type: "string", enum: ["all", "aurora", "orbit", "nova"] } },
+            required: ["project"],
+            additionalProperties: false
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute: function (input) {
+            if (!input || !["all", "aurora", "orbit", "nova"].includes(input.project)) {
+              throw new Error("Неизвестная доска проекта");
+            }
+            selectedPlanningProject = input.project;
+            document.getElementById("planningProjectSelect").value = input.project;
+            renderPlanning();
+            return planningSnapshot();
+          }
+        });
+        register({
+          name: "open_work_package",
+          title: "Открыть пакет работ",
+          description: "Открывает срок, бюджет, прогноз и связанную доказательную цепочку выбранного пакета.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workPackageId: {
+                type: "string",
+                enum: [
+                  "aurora-dfm",
+                  "aurora-power",
+                  "aurora-thermal",
+                  "aurora-control",
+                  "aurora-base",
+                  "orbit-map",
+                  "orbit-nav",
+                  "orbit-emi",
+                  "orbit-pcb",
+                  "orbit-spec",
+                  "nova-optics",
+                  "nova-sensor",
+                  "nova-calibration",
+                  "nova-coating",
+                  "nova-feasibility"
+                ]
+              }
+            },
+            required: ["workPackageId"],
+            additionalProperties: false
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute: function (input) {
+            if (!input || !planningCards.some(function (card) { return card.id === input.workPackageId; })) {
+              throw new Error("Неизвестный пакет работ");
+            }
+            openPlanningCard(input.workPackageId);
+            return { workPackageId: input.workPackageId, opened: true };
+          }
+        });
+        register({
+          name: "open_purchase_trace",
+          title: "Открыть цепочку закупки",
+          description: "Открывает доказательную цепочку выбранной закупки, лота, контроля и решения.",
+          inputSchema: {
+            type: "object",
+            properties: { purchaseId: { type: "string", enum: ["PR-104", "PO-287", "PO-301", "PR-119"] } },
+            required: ["purchaseId"],
+            additionalProperties: false
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute: function (input) {
+            if (!input || !purchaseDetails[input.purchaseId]) {
+              throw new Error("Неизвестный идентификатор закупки");
+            }
+            openPurchaseTrace(input.purchaseId);
+            return { purchaseId: input.purchaseId, opened: true };
+          }
+        });
+      }
+
+      applyPeriod(selectedPeriod);
+      registerWebMCP();
+    </script>
+  </body>
+</html>
