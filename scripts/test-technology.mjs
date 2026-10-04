@@ -28,17 +28,17 @@ const financialBefore=run('JSON.stringify(totals())');
 run("scope='aurora';techProject='aurora';persist();");
 const projectFinance=run('JSON.stringify(totals())');
 
-form('techRequestForm',{quantity:48,unitPrice:250,currency:'USD',rate:0.92,cost:0,owner:'team-3',due:'2026-10-20',reason:'Поставка 48 жгутов для сборки',criteria:'Входной контроль по спецификации',document:'PR-119'});
+form('techRequestForm',{quantity:48,unitPrice:250,currency:'USD',rate:92,cost:0,owner:'team-3',due:'2026-10-20',reason:'Поставка 48 жгутов для сборки',criteria:'Входной контроль по спецификации',document:'PR-119'});
 run("requestComponent='a-harness';requestType='purchase';saveTechRequest(testEvent);");
-assert.equal(run("techRequests.find(r=>r.type==='purchase').cost"),11040);
-assert.equal(run("tasks.find(t=>t.code==='PR-TC-001').plan"),11.04);
+assert.equal(run("techRequests.find(r=>r.type==='purchase').cost"),1104000);
+assert.equal(run("tasks.find(t=>t.code==='PR-TC-001').plan"),1104);
 assert.equal(run("tasks.find(t=>t.code==='PR-TC-001').stage"),'approval');
 assert.equal(run("techComponents.find(c=>c.id==='a-harness').stock"),0);
 assert.equal(run('JSON.stringify(totals())'),projectFinance);
 // Duplicate requests for the same component/revision cannot be created.
 run('saveTechRequest(testEvent);');assert.equal(run("techRequests.filter(r=>r.type==='purchase').length"),1);
-// An EUR conversion rate other than 1 is rejected.
-form('techRequestForm',{quantity:1,unitPrice:5,currency:'EUR',rate:2,cost:0,owner:'team-3',due:'2026-10-20',reason:'Проверка',criteria:'Контроль',document:'SPEC'});
+// An RUB conversion rate other than 1 is rejected.
+form('techRequestForm',{quantity:1,unitPrice:5,currency:'RUB',rate:2,cost:0,owner:'team-3',due:'2026-10-20',reason:'Проверка',criteria:'Контроль',document:'SPEC'});
 run("requestComponent='a-sensor';saveTechRequest(testEvent);");assert.equal(run("techRequests.filter(r=>r.type==='purchase').length"),1);
 
 form('componentForm',{code:'PCB-04',revision:'Rev E',name:'Плата управления',group:'Силовая электроника',perUnit:1,spec:'Новая топология',reason:'Снижение наводок',document:'CR-10'});
@@ -51,7 +51,7 @@ assert.equal(run("usableStock(techComponents.find(c=>c.id==='a-board'))"),0);
 assert.equal(run("techEvents.find(e=>e.type==='revision'&&e.after?.revision==='Rev E').before.revision"),'Rev D');
 assert.equal(run('JSON.stringify(totals())'),projectFinance);
 
-form('techRequestForm',{quantity:1,unitPrice:1,currency:'EUR',rate:1,cost:1800,owner:'team-1',due:'2026-10-22',reason:'Проверить Rev E',criteria:'Погрешность 0,5%',document:'CR-10'});
+form('techRequestForm',{quantity:1,unitPrice:1,currency:'RUB',rate:1,cost:1800,owner:'team-1',due:'2026-10-22',reason:'Проверить Rev E',criteria:'Погрешность 0,5%',document:'CR-10'});
 run("requestComponent='a-board';requestType='verification';saveTechRequest(testEvent);");
 assert.equal(run("techComponents.find(c=>c.id==='a-board').verification"),'pending');
 const frozen=run('snapshot()');
@@ -65,7 +65,7 @@ assert.equal(frozen.technology.requests.find(r=>r.revision==='Rev E').status,'pe
 
 // Failed results remain a blocker, even if all inventory is present.
 run("techComponents.find(c=>c.id==='a-board').stockRevision='Rev E';");
-form('techRequestForm',{quantity:1,unitPrice:1,currency:'EUR',rate:1,cost:0,owner:'team-1',due:'2026-10-23',reason:'Повторная проверка',criteria:'EMC',document:'CR-10'});
+form('techRequestForm',{quantity:1,unitPrice:1,currency:'RUB',rate:1,cost:0,owner:'team-1',due:'2026-10-23',reason:'Повторная проверка',criteria:'EMC',document:'CR-10'});
 run("requestComponent='a-board';requestType='verification';saveTechRequest(testEvent);");
 form('verificationResultForm',{result:'failed',document:'TEST-29-E',conclusion:'Обнаружено отклонение EMC'});
 run("resultRequest=techRequests.filter(r=>r.componentId==='a-board'&&r.status==='pending').at(-1).id;saveVerificationResult(testEvent);");
@@ -96,8 +96,38 @@ context.URL={createObjectURL:blob=>{context.exportedBlob=blob;return 'blob:test'
 run("downloadReport(snapshot(),'excel','test');");
 const csv=await context.exportedBlob.text();
 assert.ok(csv.includes('ТЕХНОЛОГИЧЕСКАЯ КАРТА'));assert.ok(csv.includes('ЗАПРОСЫ КОМПОНЕНТОВ'));assert.ok(csv.includes('ИСТОРИЯ СОСТАВА'));assert.ok(csv.includes('CR-10'));
+assert.ok(csv.includes('"План";"2880"'));
+assert.ok(csv.includes('"Оценка, тыс. руб."'));
+assert.ok(csv.includes('"1104"'));
+assert.equal(/EUR|€|млн/.test(csv),false);
+assert.equal(run('csvCell(-8.7)'), '"-8,7"');
 run("downloadReport(snapshot(),'word','test');");
 const word=await context.exportedBlob.text();assert.ok(word.includes('Технологическая карта'));assert.ok(word.includes('Обоснования изменений'));assert.ok(word.includes('Вентилятор'));
+assert.ok(word.includes('2 880 тыс. руб.'));
+assert.ok(word.includes('оценка 1,8 тыс. руб.'));
+assert.equal(/EUR|€|млн/.test(word),false);
 run("downloadReport(snapshot(),'json','test');");
-assert.equal(JSON.parse(await context.exportedBlob.text()).technology.components.length,17);
-console.log('Technology tests passed: composition, revisions, blockers, FX, duplicates, results, budget isolation, immutable snapshots, persistence.');
+const json=JSON.parse(await context.exportedBlob.text());
+assert.equal(json.technology.components.length,17);
+assert.equal(json.currency,'RUB');assert.equal(json.financialUnit,'тыс. руб.');
+assert.equal(json.requestCostUnit,'тыс. руб.');assert.equal(json.componentPriceUnit,'тыс. руб.');
+assert.equal(json.totals.base,2880);
+assert.equal(json.technology.requests.find(r=>r.type==='purchase').cost,1104);
+assert.equal(json.technology.requests.find(r=>r.type==='purchase').unitPrice,23);
+assert.equal(json.technology.requests.find(r=>r.type==='purchase').quotedCurrency,'USD');
+assert.equal(json.technology.components.find(c=>c.id==='a-sensor').unitPrice,0.07667);
+assert.equal(run("techRequests.find(r=>r.type==='purchase').cost"),1104000);
+
+// Relabelling existing demo state must not drop edits or rescale saved numbers.
+run("const legacyState=JSON.parse(localStorage.getItem(storageKey));legacyState.technology.components.find(c=>c.code==='FAN-01').currency='EUR';initializeTechnology(legacyState);");
+assert.equal(run("techComponents.find(c=>c.code==='FAN-01').currency"),'RUB');
+assert.equal(run('techComponents.length'),17);assert.equal(run('techRequests.length'),requestCount);
+assert.equal(run("normalizeRubDemoData({amount:12,currency:'EUR',label:'−€ 12K',url:'https://example.test/?currency=EUR'}).label"),'−12 тыс. ₽');
+assert.equal(run("normalizeRubDemoData({amount:12,currency:'EUR'}).amount"),12);
+assert.equal(run("normalizeRubDemoData({url:'https://example.test/?currency=EUR'}).url"),'https://example.test/?currency=EUR');
+run("const legacyReport=structuredClone(snapshot());legacyReport.currency='EUR';legacyReport.technology.components.find(c=>c.id==='a-sensor').currency='EUR';downloadReport(legacyReport,'json','legacy');");
+const legacyJson=JSON.parse(await context.exportedBlob.text());
+assert.equal(legacyJson.currency,'RUB');assert.equal(legacyJson.technology.components.find(c=>c.id==='a-sensor').unitPrice,0.07667);
+assert.equal(run("legacyReport.technology.components.find(c=>c.id==='a-sensor').currency"),'EUR');
+assert.equal(/userSummary|users-summary/.test(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8')),false);
+console.log('Tests passed: component workflow, RUB budgets and FX, thousand-ruble reports, legacy migration, immutable history and removed user summary.');
