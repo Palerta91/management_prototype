@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>ЭПСИЛОН</title>
+  <rect width="64" height="64" fill="#080c10"/>
+  <path d="M8 8h48v48H8z" fill="none" stroke="#293640" stroke-width="2"/>
+  <path d="M44 17H20v30h24M20 32h20" fill="none" stroke="#55e6d2" stroke-width="6" stroke-linecap="square"/>
+  <path d="M49 11h4v4h-4zM11 49h4v4h-4z" fill="#63a7ff"/>
+</svg>

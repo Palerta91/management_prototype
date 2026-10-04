@@ -2,3 +2,6 @@
 .openai
 .site-*.tgz
 compose.yaml
+.env
+.env.*
+deploy/dokploy-*.mjs
