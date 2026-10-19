@@ -6,7 +6,7 @@ const uid = prefix => prefix + '-' + (globalThis.crypto?.randomUUID?.() ?? Date.
 const storageKey = 'epsilon.workspace.v1';
 const projectIds = Object.keys(planningProjects);
 const roles = { admin:'Администратор', manager:'Руководитель проекта', engineer:'Инженер', procurement:'Закупки', investor:'Инвестор · просмотр' };
-const routes = { dashboard:'Дашборд', planning:'Планирование', technology:'Технологическая карта', purchases:'Закупки', budget:'Бюджет', quality:'Качество и брак', changes:'Корректировки', reports:'Отчёты', users:'Пользователи' };
+const routes = { dashboard:'Дашборд', planning:'Планирование', technology:'Технологическая карта', production:'Производство', purchases:'Закупки', budget:'Бюджет', quality:'Качество и брак', changes:'Корректировки', reports:'Отчёты', users:'Пользователи' };
 const stages = [
   { id:'backlog', label:'Бэклог', color:'#718493' },
   { id:'approval', label:'К утверждению', color:'#a999ff' },
@@ -84,10 +84,11 @@ let dragId = null;
 let toastTimer;
 let drawerReturnFocus;
 initializeTechnology(saved);
+initializeProduction(saved);
 if(saved.baseCurrency!=='RUB')persist();
 
 function persist() {
-  try { localStorage.setItem(storageKey, JSON.stringify({ baseCurrency:'RUB', tasks, users, reports:reportHistory, taskEvents, scope, period, technology:technologyState() })); return true; }
+  try { localStorage.setItem(storageKey, JSON.stringify({ baseCurrency:'RUB', tasks, users, reports:reportHistory, taskEvents, scope, period, technology:technologyState(), production:productionData })); return true; }
   catch { notify('Не удалось сохранить изменения в браузере. Экспортируйте снимок данных.'); return false; }
 }
 function notify(message) { $('toast').textContent = message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4200); }
@@ -225,7 +226,7 @@ function renderUsers() {
 }
 function renderReports() {
   const visible=reportHistory.filter(report=>scope==='all'||report.snapshot.projects.some(project=>project.id===scope));
-  $('reportHistory').innerHTML=visible.length?visible.map(report=>'<div class="list-row"><div class="list-row-top"><h3>'+escapeHtml(report.id+' · '+report.name)+'</h3><button class="btn small" data-report="'+escapeHtml(report.id)+'" type="button">↓ Скачать снова</button></div><p>'+escapeHtml(report.snapshot.scopeName)+' · '+new Date(report.createdAt).toLocaleString('ru-RU')+' · '+report.snapshot.period.toUpperCase()+'</p></div>').join(''):empty('Отчётов пока нет. Сформируйте первый снимок выбранного проекта.');
+  $('reportHistory').innerHTML=visible.length?visible.map(report=>'<div class="list-row"><div class="list-row-top"><h3>'+escapeHtml(report.id+' · '+report.name)+'</h3><button class="btn small" data-report="'+escapeHtml(report.id)+'" type="button">↓ Скачать снова</button></div><p>'+escapeHtml(report.snapshot.scopeName)+' · '+new Date(report.createdAt).toLocaleString('ru-RU')+' · '+(report.snapshot.reportKind==='production'?displayDate(report.snapshot.production.from)+' — '+displayDate(report.snapshot.production.to):report.snapshot.period.toUpperCase())+'</p></div>').join(''):empty('Отчётов пока нет. Сформируйте первый снимок выбранного проекта.');
 }
 
 function render() {
@@ -234,7 +235,8 @@ function render() {
   $('sidebarScopeNote').textContent=scope==='all'?'3 проекта · единый контроль':planningProjects[scope].name;
   document.querySelectorAll('.scope-label').forEach(label=>label.textContent=scope==='all'?'ПОРТФЕЛЬ / 03 ПРОЕКТА':planningProjects[scope].code+' / '+planningProjects[scope].direction.toUpperCase());
   $('snapshotDate').textContent=period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
-  renderDashboard(); renderPlanning(); renderPurchases(); renderBudget(); renderQuality(); renderChanges(); renderUsers(); renderReports(); renderTechnology();
+  renderDashboard(); renderPlanning(); renderPurchases(); renderBudget(); renderQuality(); renderChanges(); renderUsers(); renderReports(); renderTechnology(); renderProduction();
+  if(currentRoute==='production')$('snapshotDate').textContent='Демонстрационный производственный срез · '+displayDate(productionAsOf);
 }
 function routeUrl(route) { return '/'+route+'?project='+scope+'&period='+period; }
 function parseUrl() {
@@ -251,6 +253,8 @@ function navigate(route,options={}) {
   if(!(route in routes))return;
   if(route==='technology'&&scope==='all'){scope=techProject;persist();render();}
   closeDrawer(); currentRoute=route;
+  $('periodSelect').closest('label').hidden=route==='production';
+  $('snapshotDate').textContent=route==='production'?'Демонстрационный производственный срез · '+displayDate(productionAsOf):period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
   document.querySelectorAll('[data-view]').forEach(view=>view.hidden=view.dataset.view!==route);
   document.querySelectorAll('.sidebar nav [data-route]').forEach(link=>{if(link.dataset.route===route)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
   $('currentSection').textContent=routes[route]; document.title='ЭПСИЛОН · '+routes[route];
@@ -352,7 +356,7 @@ function saveUser(event) {
 }
 
 function snapshot() {
-  return { system:'ЭПСИЛОН', currency:'RUB', financialUnit:'тыс. руб.', componentPriceUnit:'руб.', requestCostUnit:'руб.', capturedAt:new Date().toISOString(), scope, scopeName:scopeName(), period, totals:totals(), projects:scopeIds().map(id=>({id,...planningProjects[id],financial:financial(id)})), tasks:tasks.filter(inScope).map(task=>({...structuredClone(task),owner:taskOwner(task)})), purchases:structuredClone(purchases.filter(inScope)), changes:structuredClone(changes.filter(inScope)), scores:healthScores(), technology:structuredClone({components:techComponents.filter(inScope),requests:techRequests.filter(inScope),events:techEvents.filter(inScope)}) };
+  return { system:'ЭПСИЛОН', currency:'RUB', financialUnit:'тыс. руб.', componentPriceUnit:'руб.', requestCostUnit:'руб.', capturedAt:new Date().toISOString(), scope, scopeName:scopeName(), period, totals:totals(), projects:scopeIds().map(id=>({id,...planningProjects[id],financial:financial(id)})), tasks:tasks.filter(inScope).map(task=>({...structuredClone(task),owner:taskOwner(task)})), purchases:structuredClone(purchases.filter(inScope)), changes:structuredClone(changes.filter(inScope)), scores:healthScores(), technology:structuredClone({components:techComponents.filter(inScope),requests:techRequests.filter(inScope),events:techEvents.filter(inScope)}), production:productionSnapshot() };
 }
 function reportSnapshot(data) {
   const report=normalizeRubDemoData(structuredClone(data));
@@ -381,6 +385,7 @@ function reportSnapshot(data) {
 }
 function csvCell(value) { if(typeof value==='number'&&Number.isFinite(value))return '"'+value.toLocaleString('ru-RU',{useGrouping:false,maximumFractionDigits:6})+'"';let text=String(value??'');if(/^[=+\-@]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'; }
 function downloadReport(data,format,name) {
+  if(data.reportKind==='production'&&data.production){downloadProductionReport(data,format,name);return;}
   let body,type,extension;
   data=normalizeRubDemoData(data);
   const tech=data.technology??{components:[],requests:[],events:[]};
@@ -388,12 +393,14 @@ function downloadReport(data,format,name) {
   else if(format==='excel'){
     const rows=[['ЭПСИЛОН',data.scopeName,data.period],['Финансовые показатели','тыс. руб.'],['План',data.totals.base],['Факт',data.totals.actual],['Обязательства',data.totals.commitments],['EAC',data.totals.eac],[],['КАРТОЧКИ'],['Код','Проект','Название','Статус','Ответственный','Срок','План, тыс. руб.','Факт, тыс. руб.','Обязательства, тыс. руб.','EAC, тыс. руб.','Бюджетная заявка'],...data.tasks.map(task=>[task.code,planningProjects[task.project].code,task.title,stages.find(stage=>stage.id===task.stage).label,task.owner,task.due,task.plan,task.actual,task.commitments,task.eac,task.proposed?'Да':'Нет']),[],['ЗАКУПКИ'],['Код','Проект','Компонент','Сумма, тыс. руб.','Принято','Брак','Полный пакет'],...data.purchases.map(item=>[item.id,planningProjects[item.project].code,item.component,item.amount,item.accepted,item.defect,item.complete?'Да':'Нет']),[],['КОРРЕКТИРОВКИ'],['Код','Проект','Причина','Влияние, тыс. руб.','Статус'],...data.changes.map(item=>[item.id,planningProjects[item.project].code,item.title,item.amount,item.status])];
     rows.push([],['ТЕХНОЛОГИЧЕСКАЯ КАРТА'],['Проект','Подсистема','Код','Компонент','Ревизия','На изделие','Потребность партии','Годных актуальной ревизии','Склад всего годных','Ревизия остатка','В пути актуальной ревизии','Ревизия заказа','Брак','Верификация','Основание'],...tech.components.map(c=>[planningProjects[c.project].code,c.group,c.code,c.name,c.revision,c.perUnit,c.perUnit*techProducts[c.project].batch,usableStock(c),c.stock,c.stockRevision,usableOrder(c),c.orderRevision,c.defect,techVerificationLabels[c.verification],c.document]),[],['ЗАПРОСЫ КОМПОНЕНТОВ'],['Код','Проект','Компонент','Ревизия','Тип','Статус','Обоснование','Оценка, тыс. руб.','Срок','Основание'],...tech.requests.map(r=>[r.code,planningProjects[r.project].code,r.componentName,r.revision,r.type,requestLabel(r),r.reason,r.cost/1000,r.due,r.document]),[],['ИСТОРИЯ СОСТАВА'],['Дата','Изменение','Обоснование','Документ'],...tech.events.map(e=>[e.at,e.title,e.reason,e.document]));
+    rows.push(...productionReportRows(data.production));
     body='\ufeff'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');type='text/csv;charset=utf-8';extension='csv';
   }else{
     const table='<table><tr><th>Пакет работ</th><th>Проект</th><th>Статус</th><th>Ответственный</th><th>Срок</th><th>План / EAC, тыс. руб.</th></tr>'+data.tasks.map(task=>'<tr><td>'+escapeHtml(task.title)+'</td><td>'+planningProjects[task.project].code+'</td><td>'+stages.find(stage=>stage.id===task.stage).label+'</td><td>'+escapeHtml(task.owner)+'</td><td>'+displayDate(task.due)+'</td><td>'+reportMoney(task.plan)+' / '+reportMoney(task.eac)+'</td></tr>').join('')+'</table>';
     const techTable='<h2>Технологическая карта</h2><table><tr><th>Компонент</th><th>Ревизия</th><th>Годных актуальной ревизии / потребность</th><th>Брак</th><th>Верификация</th><th>Основание</th></tr>'+tech.components.map(c=>'<tr><td>'+escapeHtml(planningProjects[c.project].code+' · '+c.code+' · '+c.name)+'</td><td>'+escapeHtml(c.revision)+'</td><td>'+usableStock(c)+' / '+c.perUnit*techProducts[c.project].batch+'</td><td>'+c.defect+'</td><td>'+techVerificationLabels[c.verification]+'</td><td>'+escapeHtml(c.document)+'</td></tr>').join('')+'</table><h2>Обоснования изменений</h2>'+tech.events.map(e=>'<p><strong>'+escapeHtml(e.title)+'</strong><br>'+escapeHtml(e.reason)+'<br>Основание: '+escapeHtml(e.document)+'</p>').join('')+'<h2>Запросы компонентов</h2>'+tech.requests.map(r=>'<p><strong>'+escapeHtml(r.code+' · '+r.componentName+' · '+r.revision)+'</strong><br>'+requestLabel(r)+' · оценка '+reportMoney(r.cost/1000)+'<br>'+escapeHtml(r.reason)+'</p>').join('');
     body='\ufeff<html><head><meta charset="utf-8"><title>ЭПСИЛОН</title><style>body{font-family:Arial;color:#14242f}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;font-size:11px}th{background:#e8f4f2;text-align:left}h1{font-size:28px}h2{font-size:18px}</style></head><body><h1>ЭПСИЛОН · Обзор проекта</h1><p>'+escapeHtml(data.scopeName)+' · '+data.period.toUpperCase()+'</p><p>Снимок: '+new Date(data.capturedAt).toLocaleString('ru-RU')+'</p><h2>Финансовые показатели, тыс. руб.</h2><p>План: '+reportMoney(data.totals.base)+'<br>Факт: '+reportMoney(data.totals.actual)+'<br>Обязательства: '+reportMoney(data.totals.commitments)+'<br>EAC: '+reportMoney(data.totals.eac)+'</p><h2>Пакеты работ</h2>'+table+'<h2>Профиль проекта</h2><p>'+data.scores.map(item=>item.label+': '+item.value+'%').join(' · ')+'</p>'+techTable+'<p>Демонстрационные данные.</p></body></html>';type='application/msword;charset=utf-8';extension='doc';
   }
+  if(format==='word')body=body.replace('</body>',productionReportHtml(data.production)+'</body>');
   const url=URL.createObjectURL(new Blob([body],{type})),link=document.createElement('a');link.href=url;link.download=name+'.'+extension;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function exportReport(format) {
@@ -424,6 +431,7 @@ $('taskSearch').addEventListener('input',renderPlanning);$('userSearch').addEven
 $('addTask').addEventListener('click',()=>openTaskForm());$('taskForm').addEventListener('submit',saveTask);$('taskForm').elements.project.addEventListener('change',event=>fillOwners(event.target.value));
 $('addUser').addEventListener('click',()=>openUserForm());$('userForm').addEventListener('submit',saveUser);
 setupTechnology();
+setupProduction();
 $('currentUserButton').addEventListener('click',()=>{navigate('users');openUserForm('admin');});
 $('closeDrawer').addEventListener('click',closeDrawer);$('drawerBody').addEventListener('change',event=>{if(event.target.id==='taskStage')moveTask(selectedTask,event.target.value);});
 for(const id of ['dashboardExport','budgetExport','reportExport'])$(id).addEventListener('click',openReportDialog);
