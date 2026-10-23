@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 
 const ok=(body={},status=200,extra={})=>({status,body,...extra});
 const fail=(message,status=400)=>ok({error:message},status);
-const active=a=>a?.profile.status==='active';
+const active=a=>a?.profile?.status==='active';
 const genericReset='Если учётная запись существует, запрос передан ответственному. Новый временный пароль сообщат лично после проверки вашей личности.';
 export class AuthService{
   constructor(store,key,{now=()=>Date.now(),sessionHours=8,tempHours=48}={}){this.store=store;this.key=key;this.now=now;this.sessionMs=sessionHours*3600000;this.tempMs=tempHours*3600000;}
@@ -109,7 +109,7 @@ export class AuthService{
           const draft=structuredClone(s),result=applyPolicy(draft,actor.profile.id,input.operation,input.payload),existing=new Set(Object.keys(draft.accounts));
           const newProfiles=result.users.filter(p=>!existing.has(p.id));
           if(newProfiles.length>1||Object.keys(draft.accounts).length+newProfiles.length>500)return fail('Превышен лимит учётных записей MVP.');
-          for(const p of result.users)if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)||p.email.length>120||!p.name.trim()||p.name.length>80||!p.position.trim()||p.position.length>120)return fail('Проверьте имя, рабочий email и должность.');
+          for(const p of result.users)if(!['admin','leader','head','project_manager','employee'].includes(p.role)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)||p.email.length>120||!p.name.trim()||p.name.length>80||!p.position.trim()||p.position.length>120)return fail('Проверьте имя, рабочий email, роль и должность.');
           // New accounts have no initial credential until a temporary one is issued.
           for(const profile of result.users){
             if(existing.has(profile.id)){const a=draft.accounts[profile.id];if(JSON.stringify(a.profile)!==JSON.stringify(profile)){a.profile=profile;this.invalidate(draft,profile.id);}if(profile.status!=='active')delete a.temporary;}

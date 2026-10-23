@@ -33,7 +33,7 @@ const operations={
   revoke:{form:'accessRevokeForm',call:'if(!revokeAccessGrant(input.id,input.reason))policyError="Нет права отзыва допуска.";'}
 };
 export function applyPolicy(state,actorId,operation,input){
-  const op=operations[operation];if(!op)throw new Error('Неизвестная операция.');
+  if(!Object.hasOwn(operations,operation))throw new Error('Неизвестная операция.');const op=operations[operation];
   const p=policyContext(state,actorId);p.context.event={preventDefault(){}};p.context.input=input;p.context.policyError='';p.context.notice='';
   p.form(op.form,input.fields??{},input.checked??{});
   p.context.editingId=input.id??null;

@@ -26,6 +26,9 @@ async function create(name,email,role='employee'){
   assert.equal(r.status,200,JSON.stringify(r.body));const user=r.body.bootstrap.workspace.users.find(u=>u.email===email);assert.ok(user);assert.ok(r.body.temporaryPassword);return {id:user.id,password:r.body.temporaryPassword};
 }
 const employee=await create('Тестовый сотрудник','employee@epsilon.test');
+assert.equal((await call('administration',{operation:'constructor',payload:{}},root)).status,403);
+assert.equal((await call('administration',{operation:'user',payload:{fields:fields('Некорректная роль','invalid-role@epsilon.test','constructor'),checked:{projects:['aurora']}}},root)).status,403);
+assert.equal((await call('reset',{userId:'constructor',reason:'Некорректный id',identityVerified:true},root)).status,403);
 const vault1=await call('vault',null,root);assert.equal(vault1.body.items.find(u=>u.userId===employee.id).password,employee.password);
 let staff=await login('employee@epsilon.test',employee.password);
 assert.equal((await call('bootstrap',null,staff)).status,403,'Temporary password cannot open the workspace');

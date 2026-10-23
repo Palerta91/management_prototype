@@ -35,7 +35,7 @@ function initializeAccess(data) {
   const legacyLabels={manager:'Руководитель проекта',engineer:'Инженер',procurement:'Специалист по закупкам',investor:'Инвестор (демо)'};
   users.forEach(u=>{
     const old=u.role;
-    if(!(u.role in accessRoles)){u.legacyRole??=old;u.role=old==='manager'?'head':'employee';}
+    if(!Object.hasOwn(accessRoles,u.role)){u.legacyRole??=old;u.role=old==='manager'?'head':'employee';}
     u.position??=legacyLabels[old]??(u.role==='admin'?'Системный администратор':accessRoles[u.role]);
     u.departmentId??=u.role==='admin'||old==='investor'?'management':old==='procurement'?'supply':'development';
     if(!accessState.departments.some(d=>d.id===u.departmentId))u.departmentId='development';
@@ -116,7 +116,7 @@ function accessCanManageUser(target){
   return true;
 }
 function accessCanChangeRole(target,newRole){
-  const a=accessActor();if(!accessActive()||!['admin','leader'].includes(a.role)||!(newRole in accessRoles))return false;
+  const a=accessActor();if(!accessActive()||!['admin','leader'].includes(a.role)||!Object.hasOwn(accessRoles,newRole))return false;
   if(target?.id===accessState.superAdminId&&newRole!=='leader')return false;
   if(target&&!accessCanManageUser(target))return false;
   if(a.role==='leader')return true;
