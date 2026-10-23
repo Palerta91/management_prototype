@@ -134,7 +134,7 @@ assert.equal(/userSummary|users-summary/.test(readFileSync(new URL('../dist/inde
 const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
 const assetUrls=[...html.matchAll(/(?:src|href)="(\.\/assets\/[^\"]+)"/g)].map(match=>match[1]);
 assert.equal(assetUrls.length,8);
-assert.ok(assetUrls.every(url=>url.endsWith('?v=20261023-access')));
+assert.ok(assetUrls.every(url=>url.endsWith('?v=20261023-governance')));
 const nginx=readFileSync(new URL('../deploy/nginx.conf',import.meta.url),'utf8');
 assert.ok(nginx.includes('add_header Cache-Control "no-store" always;'));
 console.log('Tests passed: component workflow, RUB budgets and FX, thousand-ruble reports, legacy migration, immutable history, removed user summary and fresh release assets.');

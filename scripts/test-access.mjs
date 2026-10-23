@@ -14,7 +14,7 @@ function form(id,values,checked={}){
 }
 const actor=id=>run(`accessState.actorId=${JSON.stringify(id)};`);
 const check=code=>run(code);
-assert.deepEqual([...run('Object.keys(roles)')],['admin','leader','head','employee']);
+assert.deepEqual([...run('Object.keys(roles)')],['admin','leader','head','project_manager','employee']);
 assert.equal(check("users.find(u=>u.id==='team-3').position"),'Специалист по закупкам');
 assert.equal(check("users.find(u=>u.id==='team-3').role"),'employee');
 // Administrative authority is not authority to read business data or chats.
@@ -100,4 +100,59 @@ actor('admin');run("downloadReport({},'json','forbidden');downloadProductionRepo
 run('persist();');const data=JSON.parse(stored);assert.equal(data.technology.components.length,16);assert.equal(data.production.runs.length,12);assert.ok(data.access.events.length>=7);assert.ok(data.projectCatalog[projectId]);
 const userCount=data.users.length;run('initializeAccess(JSON.parse(localStorage.getItem(storageKey)));');assert.equal(run('users.length'),userCount);
 assert.equal(run("users.find(u=>u.email==='access-test@epsilon.example').position"),'Мастер участка');
-console.log('Tests passed: four roles, legacy migration, role/position separation, project/department scope, self-escalation prevention, temporary grants/expiry/revocation, chat exclusions, total blocking, budgets, classifications and save-time guards.');
+// Governance migration appoints exactly the first director and never re-elects on reload.
+assert.equal(run('accessState.superAdminId'),'director');
+assert.equal(run('accessState.governanceVersion'),1);
+const user=id=>`users.find(u=>u.id===${JSON.stringify(id)})`;
+actor('admin');
+for(const id of ['director','leader-operations','leader-strategy']){
+  assert.equal(run(`accessCanUserAction(${user(id)},'block')`),false);
+  assert.equal(run(`accessCanManageUser(${user(id)})`),false);
+  form('accessBlockForm',{userId:id,reason:'Попытка блокировки одного из нескольких руководителей',action:'block'});run('saveAccessBlock(event);');assert.equal(run(`${user(id)}.status`),'active');
+}
+actor('leader-operations');
+for(const id of ['director','leader-strategy','admin'])for(const action of ['block','revoke','restore','delete'])assert.equal(run(`accessCanUserAction(${user(id)},'${action}')`),false);
+assert.equal(run(`accessCanChangeRole(${user('admin')},'employee')`),false);
+assert.equal(run(`accessCanChangeRole(${user('leader-strategy')},'employee')`),false);
+assert.equal(run(`accessCanUserAction(${user('employee-production')},'block')`),true);
+// Revoke, restore and blocking are separate transitions; unblocking cannot revive revoked access.
+form('accessBlockForm',{userId:created.id,action:'revoke',reason:'Снятие допуска по проектам'});run('saveAccessBlock(event);');actor(created.id);assert.equal(run('accessCanAdmin()'),false);assert.equal(run('accessProjects().length'),0);
+actor('leader-operations');form('accessBlockForm',{userId:created.id,action:'block',reason:'Блокировка отозванной записи'});run('saveAccessBlock(event);');assert.equal(run(`${user(created.id)}.status`),'blocked');run('saveAccessBlock(event);');assert.equal(run(`${user(created.id)}.status`),'inactive');
+form('accessBlockForm',{userId:created.id,action:'restore',reason:'Восстановление по решению руководителя'});run('saveAccessBlock(event);');assert.equal(run(`${user(created.id)}.status`),'active');
+// Only the current superadmin removes accounts; links/history remain and the holder cannot remove/demote self.
+form('accessBlockForm',{userId:created.id,action:'delete',reason:'Недопустимое удаление'});run('saveAccessBlock(event);');assert.equal(run(`${user(created.id)}.status`),'active');
+actor('director');assert.equal(run('accessSuper()'),true);assert.equal(run("accessCanChangeRole(accessActor(),'employee')"),false);assert.equal(run("accessCanUserAction(accessActor(),'delete')"),false);
+for(const id of ['admin','leader-operations','employee-production'])assert.equal(run(`accessCanUserAction(${user(id)},'delete')`),true);
+form('accessBlockForm',{userId:created.id,action:'delete',reason:'Удаление тестовой учётной записи'});run('saveAccessBlock(event);');assert.equal(run(`${user(created.id)}.status`),'deleted');assert.equal(run(`validUser(${user(created.id)})`),true);actor(created.id);assert.equal(run('accessActive()'),false);
+// Project manager permissions are explicit per project, not inherited from the department.
+actor('project-manager');assert.equal(run("accessCan('planning','aurora','write')"),true);assert.equal(run("accessCan('technology','aurora')"),true);assert.equal(run("accessCan('technology','aurora','write')"),false);assert.equal(run("accessCan('planning','orbit')"),false);assert.equal(run("accessCan('dashboard','aurora')"),false);assert.equal(run('accessCanAdmin()'),false);assert.equal(run("accessCanSetDeadline('aurora')"),true);
+run('accessActor().pmDeadlines=[];');assert.equal(run("accessCanSetDeadline('aurora')"),false);
+// Department heads configure only their own managers, only inside their own authority.
+actor('head-production');assert.equal(run(`accessCanManageUser(${user('project-manager')})`),false);
+run("users.find(u=>u.id==='project-manager').departmentId='production';");assert.equal(run(`accessCanManageUser(${user('project-manager')})`),true);
+const pmFields={...fields,name:'Дмитрий Лебедев',email:'projects@epsilon.example',position:'Руководитель пилотной сборки',role:'project_manager',departmentId:'production','pm-aurora-production':'verify','pm-aurora-planning':'write',accessReason:'Делегирование приёмки сборки'};
+form('userForm',pmFields,{projects:['aurora'],'pm-deadlines':['aurora']});run("editingUser='project-manager';saveAccessUser(event);");actor('project-manager');assert.equal(run("accessCan('production','aurora','verify')"),true);assert.equal(run("accessCanSetDeadline('aurora')"),true);
+actor('head-production');form('userForm',{...pmFields,'pm-aurora-budget':'write'},{projects:['aurora'],'pm-deadlines':['aurora']});run('saveAccessUser(event);');actor('project-manager');assert.equal(run("accessCan('budget','aurora','write')"),false);
+actor('head-quality');assert.equal(run(`accessCanConfigurePM(${user('project-manager')})`),false);
+// Admin can assign the role but cannot forge its business permissions.
+actor('admin');form('userForm',{...pmFields,'pm-aurora-budget':'verify'},{projects:['aurora'],'pm-deadlines':['aurora']});run('saveAccessUser(event);');actor('project-manager');assert.equal(run("accessCan('budget','aurora')"),false);
+// A leader can delegate cross-department data deliberately, without opening other projects.
+actor('director');form('userForm',{...pmFields,'pm-aurora-budget':'read'},{projects:['aurora'],'pm-deadlines':['aurora']});run('saveAccessUser(event);');actor('project-manager');assert.equal(run("accessCan('budget','aurora')"),true);assert.equal(run("accessCan('budget','aurora','write')"),false);assert.equal(run("accessCan('budget','orbit')"),false);
+// Transfer requires three different active leaders; neither sender nor recipient confirms it.
+actor('director');const transferFields={toId:'leader-operations',approverId:'leader-strategy',reason:'Плановая передача управления'};
+form('superTransferForm',{...transferFields,approverId:'leader-operations'});run('saveAccessTransfer(event);');assert.equal(run('accessState.transfers.length'),0);
+form('superTransferForm',{...transferFields,toId:'admin'});run('saveAccessTransfer(event);');assert.equal(run('accessState.transfers.length'),0);
+form('superTransferForm',transferFields);run('saveAccessTransfer(event);');assert.equal(run('accessState.transfers.length'),1);assert.equal(run('accessState.superAdminId'),'director');
+run('saveAccessTransfer(event);');assert.equal(run('accessState.transfers.length'),1);
+const transferId=run('accessState.transfers[0].id');const decisionFields={transferId,decision:'approve',reason:'Независимое подтверждение'};
+for(const id of ['director','leader-operations','admin','project-manager']){actor(id);form('transferDecisionForm',decisionFields);run('saveAccessTransferDecision(event);');assert.equal(run('accessState.superAdminId'),'director');}
+// A changed recipient invalidates the pending request at save time.
+actor('leader-strategy');run("users.find(u=>u.id==='leader-operations').status='blocked';");form('transferDecisionForm',decisionFields);run('saveAccessTransferDecision(event);');assert.equal(run('accessState.superAdminId'),'director');run("users.find(u=>u.id==='leader-operations').status='active';");
+run('saveAccessTransferDecision(event);');assert.equal(run('accessState.superAdminId'),'leader-operations');assert.equal(run('accessState.transfers[0].status'),'approved');assert.equal(run('accessState.transfers[0].decidedBy'),'leader-strategy');run('saveAccessTransferDecision(event);');assert.equal(run('accessState.superAdminId'),'leader-operations');
+actor('director');assert.equal(run('accessSuper()'),false);assert.equal(run(`accessCanUserAction(${user('admin')},'delete')`),false);
+actor('leader-operations');assert.equal(run('accessSuper()'),true);assert.equal(run(`accessCanUserAction(${user('director')},'delete')`),true);assert.equal(run("accessCanReadConversation({type:'direct',participants:['team-0','team-1']})"),false);
+run('persist();initializeAccess(JSON.parse(localStorage.getItem(storageKey)));');assert.equal(run('accessState.superAdminId'),'leader-operations');assert.equal(run('users.length'),userCount);assert.equal(run(`${user(created.id)}.status`),'deleted');
+// Cancellation and rejection never move powers.
+form('superTransferForm',{toId:'director',approverId:'leader-strategy',reason:'Тест отмены'});run('saveAccessTransfer(event);');let nextTransfer=run('accessState.transfers.at(-1).id');form('transferDecisionForm',{transferId:nextTransfer,decision:'cancel',reason:'Отмена владельцем'});run('saveAccessTransferDecision(event);');assert.equal(run('accessState.transfers.at(-1).status'),'cancelled');
+form('superTransferForm',{toId:'director',approverId:'leader-strategy',reason:'Тест отклонения'});run('saveAccessTransfer(event);');nextTransfer=run('accessState.transfers.at(-1).id');actor('leader-strategy');form('transferDecisionForm',{transferId:nextTransfer,decision:'reject',reason:'Требуются дополнительные основания'});run('saveAccessTransferDecision(event);');assert.equal(run('accessState.transfers.at(-1).status'),'rejected');assert.equal(run('accessState.superAdminId'),'leader-operations');
+console.log('Tests passed: five roles + unique superadmin, migration, role/position separation, scoped delegation, protected leaders/admins, revoke/restore/soft deletion, three-party transfer/invalidations/replay/cancel/reject, chat privacy, grants and business workflow regressions.');
