@@ -117,8 +117,9 @@ function setProductionRange(range) {
   productionData.range=range;if(range!=='custom'){productionData.from=from;productionData.to=productionAsOf;}persist();renderProduction();
 }
 function productionFormError(id,message) {$(id).textContent=message;$(id).hidden=false;}
-function openProductionRun() {const f=$('productionRunForm');f.reset();f.elements.project.value=scope==='all'?'aurora':scope;f.elements.date.value=productionAsOf;$('productionRunError').hidden=true;$('productionRunDialog').showModal();}
+function openProductionRun() {const f=$('productionRunForm');f.reset();accessFillProjectSelect(f.elements.project,'production');f.elements.date.value=productionAsOf;$('productionRunError').hidden=true;$('productionRunDialog').showModal();}
 function saveProductionRun(event) {
+  if(!accessRequire('production',$('productionRunForm').elements.project.value,'write')){event.preventDefault();return;}
   event.preventDefault();const f=$('productionRunForm');if(!f.reportValidity())return;const val=k=>f.elements[k].value.trim();
   const r={id:uid('run'),project:val('project'),code:val('code'),revision:val('revision'),date:val('date'),checked:Number(val('checked')),document:val('document')};
   const err=!projectIds.includes(r.project)||!validProductionDate(r.date)||r.date>productionAsOf?'Выберите проект и дату не позднее даты демонстрационного среза.':!r.code||!r.revision||!r.document?'Укажите партию, ревизию и документ ОТК.':!Number.isInteger(r.checked)||r.checked<=0||r.checked>1000000?'Количество должно быть целым и больше нуля.':productionData.runs.some(x=>x.project===r.project&&x.code.toLowerCase()===r.code.toLowerCase())?'Партия с таким кодом уже существует.':null;
@@ -129,8 +130,9 @@ function fillProductionBatches() {
   const f=$('productionDefectForm'),source=f.elements.source.value,project=f.elements.project.value,items=source==='production'?productionData.runs:productionPurchases();
   f.elements.batchId.innerHTML=items.filter(r=>r.project===project).map(r=>'<option value="'+r.id+'">'+escapeHtml(productionBatchName(source,r))+'</option>').join('');
 }
-function openProductionDefect() {const f=$('productionDefectForm');f.reset();f.elements.project.value=scope==='all'?'aurora':scope;f.elements.date.value=productionAsOf;fillProductionBatches();$('productionDefectError').hidden=true;$('productionDefectDialog').showModal();}
+function openProductionDefect() {const f=$('productionDefectForm');f.reset();accessFillProjectSelect(f.elements.project,'production');f.elements.date.value=productionAsOf;fillProductionBatches();$('productionDefectError').hidden=true;$('productionDefectDialog').showModal();}
 function saveProductionDefect(event) {
+  if(!accessRequire('production',$('productionDefectForm').elements.project.value,'write')){event.preventDefault();return;}
   event.preventDefault();const f=$('productionDefectForm');if(!f.reportValidity())return;const v=k=>f.elements[k].value.trim();
   const d={id:uid('defect'),source:v('source'),project:v('project'),batchId:v('batchId'),date:v('date'),quantity:Number(v('quantity')),cost:Number(v('cost'))/1000,reason:v('reason'),document:v('document'),owner:v('owner'),action:v('action'),status:'open',events:[]};
   const batch=productionBatch(d.source,d.batchId),existing=productionRejects(d.source,d.batchId,productionAsOf);
@@ -149,12 +151,14 @@ function openProductionDefectReview(id) {
   $('productionReviewError').hidden=true;$('productionReviewDialog').showModal();
 }
 function saveProductionDefectReview(event) {
+  const accessDefect=productionData.defects.find(d=>d.id===$('productionReviewForm').elements.defectId.value);if(!accessDefect||!accessRequire('production',accessDefect.project,'verify')){event.preventDefault();return;}
   event.preventDefault();const f=$('productionReviewForm');if(!f.reportValidity())return;const d=productionData.defects.find(x=>x.id===f.elements.defectId.value),status=f.elements.status.value,reason=f.elements.reason.value.trim(),action=f.elements.action.value.trim();
   if(!d||!(status in productionDefectStatuses)||!reason||!action)return productionFormError('productionReviewError','Укажите решение и корректирующие действия.');
   d.events??=[];d.events.push({at:new Date().toISOString(),before:d.status,after:status,reason,action});d.status=status;d.action=action;persist();$('productionReviewDialog').close();renderProduction();notify('Решение сохранено. Закрытие акта не удаляет факт брака и не возвращает изделия в годный остаток.');
 }
 function openProductionShipment(id) {const s=productionData.shipments.find(x=>x.id===id);if(!s||s.shippedAt)return;const f=$('productionShipmentForm');f.reset();f.elements.shipmentId.value=id;f.elements.date.value=productionAsOf;$('productionShipmentContext').textContent=planningProjects[s.project].code+' · '+s.quantity+' ед. · '+s.document+(s.blocker?' · '+s.blocker:'');$('productionShipmentError').hidden=true;$('productionShipmentDialog').showModal();}
 function saveProductionShipment(event) {
+  const accessShipment=productionData.shipments.find(s=>s.id===$('productionShipmentForm').elements.shipmentId.value);if(!accessShipment||!accessRequire('production',accessShipment.project,'verify')){event.preventDefault();return;}
   event.preventDefault();const f=$('productionShipmentForm');if(!f.reportValidity())return;const s=productionData.shipments.find(x=>x.id===f.elements.shipmentId.value),date=f.elements.date.value,document=f.elements.document.value.trim(),reason=f.elements.reason.value.trim();
   let err=!s||s.shippedAt?'Отгрузка уже зафиксирована.':!validProductionDate(date)||date>productionAsOf?'Укажите дату не позднее даты среза.':!document||!reason?'Укажите документ и основание допуска к отгрузке.':null;
   if(!err){const dates=[...new Set([date,productionAsOf,...productionData.shipments.filter(x=>x.project===s.project&&x.shippedAt&&x.shippedAt>=date).map(x=>x.shippedAt),...productionData.defects.filter(d=>d.source==='production'&&d.project===s.project&&d.date>=date).map(d=>d.date)])];if(dates.some(day=>productionAvailable(s.project,day)<s.quantity))err='Недостаточно годных изделий на дату отгрузки с учётом других отгрузок и брака.';}
@@ -171,6 +175,7 @@ function productionReportHtml(p) {
   return '<h2>Производство</h2><p>Период: '+displayDate(p.from)+' — '+displayDate(p.to)+'. Финансовые суммы — в тыс. руб. Брак: производство / проверенные изделия; поставщики / проверенные комплектующие. Остатки и статусы отгрузок — накопительно на конец периода.</p>'+table(['Показатель','Значение'],[['Выпущено годных',p.summary.good],['Отгружено за период',p.summary.shipped],['Годный неотгруженный остаток',p.summary.available],['Брак производства',productionPercent(p.summary.bad,p.summary.checked)],['Брак поставщиков',productionPercent(p.summary.supplierBad,p.summary.supplierChecked)],['Оплачено комплектующих, тыс. руб.',p.summary.paid]])+'<h3>Выпуск</h3>'+table(['Партия / проект','Дата','Проверено','Годных','Брак'],p.runs.map(r=>[r.code+' / '+planningProjects[r.project].code,displayDate(r.date),r.checked,r.good,r.defect]))+'<h3>Отгрузки</h3>'+table(['Заказ / проект','Количество','Срок / факт','Статус','Блокер / допуск'],p.shipments.map(s=>[s.document+' / '+planningProjects[s.project].code,s.quantity,displayDate(s.due)+' / '+(s.shippedAt&&s.shippedAt<=p.to?displayDate(s.shippedAt):'—'),s.status,s.releaseReason||s.blocker]))+'<h3>Отчёт по браку · '+escapeHtml(p.source==='all'?'Все источники':productionSources[p.source])+'</h3>'+p.defects.map(d=>'<p><strong>'+escapeHtml(d.document+' · '+productionSources[d.source])+'</strong><br>'+escapeHtml(d.batchName+' · '+planningProjects[d.project].code)+'<br>'+d.quantity+' ед. · потери '+reportMoney(d.cost)+' · '+escapeHtml(productionDefectStatuses[d.status])+'<br>'+escapeHtml(d.reason)+'<br>Ответственный: '+escapeHtml(d.owner)+'<br>Действия: '+escapeHtml(d.action)+(d.events??[]).map(e=>'<br>Решение: '+escapeHtml(productionDefectStatuses[e.after]+' · '+e.reason+' · '+e.action)).join('')+'</p>').join('')+'<h3>Комплектующие, тыс. руб.</h3>'+table(['Закупка / проект','Поставщик','Заказано','Оплачено','К оплате'],p.purchases.map(r=>[r.id+' / '+planningProjects[r.project].code,r.supplier,r.amount,r.paid,r.amount-r.paid]));
 }
 function downloadProductionReport(data,format,name) {
+  if(!accessActive()||accessActor().role!=='leader'){notify('Нет права на выгрузку отчёта.');return;}
   const p=data.production;let body,type,extension;
   if(format==='json'){body=JSON.stringify({system:'ЭПСИЛОН',currency:'RUB',financialUnit:'тыс. руб.',scope:data.scopeName,capturedAt:data.capturedAt,production:p},null,2);type='application/json';extension='json';}
   else if(format==='word'){body='\ufeff<html><head><meta charset="utf-8"><style>body{font-family:Arial}table{border-collapse:collapse;width:100%}td{border:1px solid #aaa;padding:6px;font-size:10px}</style></head><body><h1>ЭПСИЛОН · Производство</h1><p>'+escapeHtml(data.scopeName)+'</p>'+productionReportHtml(p)+'<p>Демонстрационный снимок; не бухгалтерский отчёт.</p></body></html>';type='application/msword;charset=utf-8';extension='doc';}
@@ -178,6 +183,7 @@ function downloadProductionReport(data,format,name) {
   const url=URL.createObjectURL(new Blob([body],{type})),a=document.createElement('a');a.href=url;a.download=name+'.'+extension;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function exportProduction(format,source='all') {
+  if(!accessActive()||accessActor().role!=='leader'){notify('Экспорт доступен только руководителю.');return;}
   const data=snapshot();data.reportKind='production';data.production=productionSnapshot(source);const name='EPSILON-production-'+(scope==='all'?'portfolio':planningProjects[scope].code)+'-'+productionData.from+'-'+productionData.to+'-'+source+'-'+Date.now(),id=uid('RPT');
   downloadProductionReport(data,format,name);reportHistory.unshift({id,name,format,snapshot:data,createdAt:data.capturedAt});reportHistory=reportHistory.slice(0,25);persist();renderReports();notify('Производственный отчёт сохранён в истории. Суммы — в тыс. руб.');
 }

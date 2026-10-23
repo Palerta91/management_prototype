@@ -72,7 +72,7 @@ function requestLabel(r) { return r.type==='verification'&&r.status==='pending'?
 function requestBadge(r) { return badge(requestLabel(r),r.status==='passed'?'good':r.status==='failed'?'risk':'warning'); }
 function techOwner(id) { return users.find(u=>u.id===id)?.name??'Не назначен'; }
 function rubles(value) { return Number(value).toLocaleString('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}); }
-function techAction(c,type,label,primary=false) { return '<button class="btn small'+(primary?' primary':'')+'" data-tech-action="'+type+'" data-component-id="'+escapeHtml(c.id)+'" type="button">'+escapeHtml(label)+'</button>'; }
+function techAction(c,type,label,primary=false) { if(!accessCan('technology',c.project,type==='details'?'read':'write'))return '';return '<button class="btn small'+(primary?' primary':'')+'" data-tech-action="'+type+'" data-component-id="'+escapeHtml(c.id)+'" type="button">'+escapeHtml(label)+'</button>'; }
 function addTechEvent(c,type,title,reason,document,extra={}) {
   techEvents.push({id:uid('change'),componentId:c.id,project:c.project,type,title,reason,document,at:new Date().toISOString(),...extra});
   techEvents=techEvents.slice(-200);
@@ -110,12 +110,14 @@ function renderTechRequestList(rows) {
 }
 function openComponent(id) {
   const c=techComponents.find(item=>item.id===id);if(!c)return;
+  if(!accessRequire('technology',c.project))return;
   const h=componentHealth(c),requests=techRequests.filter(r=>r.componentId===id);
   const body=badge(h.label,h.kind)+detailRows([['Проект',planningProjects[c.project].code],['Подсистема',c.group],['Ревизия',c.revision],['Ответственный',techOwner(c.ownerId)],['На изделие / партию',c.perUnit+' / '+requiredQuantity(c)+' шт.'],['Годных / в пути',usableStock(c)+' / '+usableOrder(c)+' шт. актуальной ревизии'],['Снимок склада',c.stock+' шт. '+c.stockRevision+' · в пути '+c.onOrder+' шт. '+c.orderRevision],['Брак',c.defect+' шт. · исключён из годных остатков'],['Верификация',techVerificationLabels[c.verification]],['Документ',c.document],['Ориентир цены',number(c.unitPrice)+' '+c.currency+' за единицу']])+'<div class="drawer-note">'+escapeHtml(c.spec)+'</div>'+(h.issues.length?'<div class="tech-detail-issues">'+h.issues.map(i=>'<p class="'+(i.kind==='risk'?'negative':'')+'">'+escapeHtml(i.text)+'</p>').join('')+'</div>':'')+'<div class="drawer-actions tech-wrap">'+techAction(c,'change','Изменить',true)+techAction(c,'verification','Верификация')+techAction(c,'purchase','Закупка')+'</div><div style="margin-top:24px"><span class="eyebrow">СВЯЗАННЫЕ ЗАПРОСЫ</span>'+renderTechRequestList(requests)+'</div><p class="form-note" style="margin-top:20px">Остатки — снимок входного контроля в демонстрации. Изменение ревизии не делает брак годным, не переклассифицирует старые остатки и не подтверждает поступление закупки.</p>';
   selectedTask=null;openDrawer('КОМПОНЕНТ / '+c.code,c.name,body);
 }
 function openComponentForm(id=null) {
   const c=id?techComponents.find(item=>item.id===id):null;
+  if(!accessRequire('technology',c?.project??techProject,'write'))return;
   editingComponent=id;closeDrawer();const form=$('componentForm');form.reset();
   $('componentFormContext').textContent=planningProjects[c?.project??techProject].code+(c?' / ТЕКУЩАЯ РЕВИЗИЯ '+c.revision:' / НОВАЯ ПОЗИЦИЯ');
   $('componentDialogTitle').textContent=c?'Изменение компонента':'Добавить компонент';
@@ -127,6 +129,8 @@ function openComponentForm(id=null) {
 function formText(form,key) { return form.elements[key].value.trim(); }
 function formError(id,message) { $(id).textContent=message;$(id).hidden=false; }
 function saveComponent(event) {
+  const accessComponent=editingComponent?techComponents.find(c=>c.id===editingComponent):null;
+  if(!accessRequire('technology',accessComponent?.project??techProject,'write')){event.preventDefault();return;}
   event.preventDefault();const form=$('componentForm');if(!form.reportValidity())return;
   if(['code','revision','name','group','spec','reason','document'].some(key=>!formText(form,key))){formError('componentFormError','Заполните поля и укажите обоснование без пустых строк.');return;}
   const c=editingComponent?techComponents.find(item=>item.id===editingComponent):null;
@@ -147,6 +151,7 @@ function saveComponent(event) {
 }
 function pendingRequest(c,type) { return techRequests.find(r=>r.componentId===c.id&&r.revision===c.revision&&r.type===type&&r.status==='pending'); }
 function openTechRequestForm(id,type) {
+  const accessComponent=techComponents.find(c=>c.id===id);if(!accessComponent||!accessRequire('technology',accessComponent.project,'write'))return;
   const c=techComponents.find(item=>item.id===id);if(!c)return;
   const existing=pendingRequest(c,type);if(existing){openTechRequest(existing.id);notify('Для этой ревизии уже есть открытый запрос.');return;}
   requestComponent=id;requestType=type;closeDrawer();const form=$('techRequestForm');form.reset();
@@ -173,6 +178,7 @@ function updateTechEstimate() {
   $('techRequestEstimate').textContent='Бюджетная оценка: '+(Number.isFinite(cost)?rubles(cost):'—')+(purchase?' · курс фиксируется в запросе (демосценарий 04.10.2026)':'');
 }
 function saveTechRequest(event) {
+  const accessComponent=techComponents.find(c=>c.id===requestComponent);if(!accessComponent||!accessRequire('technology',accessComponent.project,'write')){event.preventDefault();return;}
   event.preventDefault();const form=$('techRequestForm');if(!form.reportValidity())return;
   const c=techComponents.find(item=>item.id===requestComponent),type=requestType;
   if(!c||pendingRequest(c,type)){formError('techRequestError','Запрос уже существует или компонент недоступен.');return;}
@@ -189,6 +195,7 @@ function saveTechRequest(event) {
 }
 function openTechRequest(id) {
   const r=techRequests.find(item=>item.id===id);if(!r)return;
+  if(!accessCan('technology',r.project)&&!accessCan(r.type==='verification'?'testing':'purchases',r.project)){notify('Нет допуска к запросу.');return;}
   const c=techComponents.find(item=>item.id===r.componentId);
   const details=[['Проект',planningProjects[r.project].code],['Компонент',c.code+' · '+r.componentName],['Ревизия запроса',r.revision],['Текущая ревизия',c.revision],['Ответственный',techOwner(r.ownerId)],['Срок',displayDate(r.due)],['Оценка, не факт',rubles(r.cost)],['Основание',r.document]];
   if(r.type==='purchase')details.splice(6,0,['Количество',r.quantity+' шт.'],['Цена / валюта',r.unitPrice.toLocaleString('ru-RU',{maximumFractionDigits:2})+' '+r.currency],['Курс зафиксирован',r.rate.toLocaleString('ru-RU',{maximumFractionDigits:6})+' руб. за 1 '+r.currency]);
@@ -198,11 +205,13 @@ function openTechRequest(id) {
 }
 function openVerificationResult(id) {
   const r=techRequests.find(item=>item.id===id),c=r&&techComponents.find(item=>item.id===r.componentId);
+  if(r&&!accessRequire('testing',r.project,'verify'))return;
   if(!r||r.type!=='verification'||r.status!=='pending'||r.revision!==c?.revision){notify('Зафиксировать результат можно только для открытого запроса актуальной ревизии.');return;}
   resultRequest=id;closeDrawer();const form=$('verificationResultForm');form.reset();
   $('verificationResultContext').textContent=r.code+' / '+c.code+' / '+r.revision;$('verificationResultError').hidden=true;$('verificationResultDialog').showModal();form.elements.document.focus();
 }
 function saveVerificationResult(event) {
+  const accessRequest=techRequests.find(r=>r.id===resultRequest);if(!accessRequest||!accessRequire('testing',accessRequest.project,'verify')){event.preventDefault();return;}
   event.preventDefault();const form=$('verificationResultForm');if(!form.reportValidity())return;
   const r=techRequests.find(item=>item.id===resultRequest),c=r&&techComponents.find(item=>item.id===r.componentId);
   if(!r||r.status!=='pending'||r.revision!==c?.revision){formError('verificationResultError','Запрос или ревизия изменились. Откройте актуальный запрос.');return;}

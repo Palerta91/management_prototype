@@ -11,10 +11,11 @@ const context=vm.createContext({structuredClone,console,URL,Blob,setTimeout,clea
   localStorage:{getItem:()=>stored,setItem:(_key,value)=>{stored=value;}},
   document:{getElementById:id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:true,close(){},focus(){}});return elements.get(id);}}
 });
-for(const file of ['seed.js','technology.js','production.js'])vm.runInContext(source(file),context,{filename:file});
+for(const file of ['seed.js','technology.js','production.js','access.js'])vm.runInContext(source(file),context,{filename:file});
 vm.runInContext(core,context,{filename:'app.js'});
 vm.runInContext('render=()=>{};notify=()=>{};closeDrawer=()=>{};openComponent=()=>{};openTechRequest=()=>{};',context);
 const run=code=>vm.runInContext(code,context);
+run("accessState.actorId='director';");
 const form=(id,values)=>elements.set(id,{reportValidity:()=>true,elements:Object.fromEntries(Object.entries(values).map(([key,value])=>[key,{value:String(value),focus(){}}]))});
 const event={preventDefault(){}};context.testEvent=event;
 
@@ -132,8 +133,8 @@ assert.equal(run("legacyReport.technology.components.find(c=>c.id==='a-sensor').
 assert.equal(/userSummary|users-summary/.test(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8')),false);
 const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
 const assetUrls=[...html.matchAll(/(?:src|href)="(\.\/assets\/[^\"]+)"/g)].map(match=>match[1]);
-assert.equal(assetUrls.length,7);
-assert.ok(assetUrls.every(url=>url.endsWith('?v=20261019-production')));
+assert.equal(assetUrls.length,8);
+assert.ok(assetUrls.every(url=>url.endsWith('?v=20261023-access')));
 const nginx=readFileSync(new URL('../deploy/nginx.conf',import.meta.url),'utf8');
 assert.ok(nginx.includes('add_header Cache-Control "no-store" always;'));
 console.log('Tests passed: component workflow, RUB budgets and FX, thousand-ruble reports, legacy migration, immutable history, removed user summary and fresh release assets.');
