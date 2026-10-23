@@ -8,11 +8,21 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
+    environment:
+      NODE_ENV: production
+      PGHOST: db
+      PGDATABASE: ${RND_CONTOUR_DB_NAME:-rnd_contour}
+      PGUSER: ${RND_CONTOUR_DB_USER:-rnd_contour}
+      PGPASSWORD: ${RND_CONTOUR_DB_PASSWORD:?Set RND_CONTOUR_DB_PASSWORD in Epsilon Dokploy}
+      EPSILON_ORIGIN: ${EPSILON_ORIGIN:?Set the HTTPS Epsilon origin}
+      EPSILON_VAULT_KEY: ${EPSILON_VAULT_KEY:?Set an independent vault encryption key}
+      EPSILON_BOOTSTRAP_EMAIL: ${EPSILON_BOOTSTRAP_EMAIL:?Set bootstrap email}
+      EPSILON_BOOTSTRAP_HASH: ${EPSILON_BOOTSTRAP_HASH:?Set bootstrap hash, never a plaintext password}
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -qx ok"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
       timeout: 3s
       retries: 3

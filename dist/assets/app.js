@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 const uid = prefix => prefix + '-' + (globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
-const storageKey = 'epsilon.workspace.v1';
+const storageKey = globalThis.epsilonAuth?'epsilon.workspace.user.'+globalThis.epsilonAuth.user.id:'epsilon.workspace.v1';
 const saved = normalizeRubDemoData(loadState());
 restoreProjectCatalog(saved);
 const projectIds = Object.keys(planningProjects);
@@ -67,7 +67,7 @@ const initialBacklog = [
   { id:'backlog-nova', project:'nova', title:'Оценка альтернативного сенсора', ownerId:'team-11', due:'2026-10-29', plan:15, reason:'Сравнить стоимость, доступность и характеристики альтернативного комплектующего.' }
 ].map((item,index)=>({...item, code:'BL-'+String(index+1).padStart(3,'0'), stage:'backlog', baseline:displayDate(item.due), forecast:displayDate(item.due), actual:0, commitments:0, eac:item.plan, owner:'', health:'ok', healthText:'Бюджетная заявка', links:[], proposed:true }));
 
-function loadState() { try { const data = JSON.parse(localStorage.getItem(storageKey)); return data && typeof data === 'object' ? data : {}; } catch { return {}; } }
+function loadState() { let data={};try { const stored = JSON.parse(localStorage.getItem(storageKey)); if(stored&&typeof stored==='object')data=stored; } catch {}return globalThis.epsilonAuth?{...data,...globalThis.epsilonAuth.workspace}:data; }
 function validTask(task) { return task && /^[\w-]+$/.test(task.id) && projectIds.includes(task.project) && stages.some(stage => stage.id === task.stage) && typeof task.title === 'string' && task.title.length <= 140 && /^\d{4}-\d{2}-\d{2}$/.test(task.due) && ['plan','actual','commitments','eac'].every(key => Number.isFinite(task[key]) && task[key] >= 0 && task[key] <= 100000); }
 function validUser(user) { return user && /^[\w-]+$/.test(user.id) && typeof user.name === 'string' && typeof user.email === 'string' && (user.role in roles||['manager','engineer','procurement','investor'].includes(user.role)) && ['active','inactive','blocked','deleted'].includes(user.status) && Array.isArray(user.projects) && user.projects.every(id => projectIds.includes(id)); }
 let tasks = Array.isArray(saved.tasks) && saved.tasks.length && saved.tasks.every(validTask) ? saved.tasks : structuredClone(planningCards);

@@ -6,18 +6,14 @@
   <meta name="description" content="ЭПСИЛОН — управление разработкой, бюджетами и проектами." />
   <meta name="theme-color" content="#080c10" />
   <title>ЭПСИЛОН · Дашборд</title>
-  <link rel="icon" type="image/svg+xml" href="./assets/epsilon.svg?v=20261023-governance" />
-  <link rel="stylesheet" href="./assets/app.css?v=20261023-governance" />
-  <script src="./assets/seed.js?v=20261023-governance" defer></script>
-  <script src="./assets/technology.js?v=20261023-governance" defer></script>
-  <script src="./assets/production.js?v=20261023-governance" defer></script>
-  <script src="./assets/access.js?v=20261023-governance" defer></script>
-  <script src="./assets/app.js?v=20261023-governance" defer></script>
+  <link rel="icon" type="image/svg+xml" href="/assets/epsilon.svg?v=20261023-auth" />
+  <link rel="stylesheet" href="/assets/app.css?v=20261023-auth" />
+  <script src="/assets/auth-app.js?v=20261023-auth" defer></script>
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <a class="brand" href="/dashboard" data-route="dashboard" aria-label="ЭПСИЛОН — дашборд"><img src="./assets/epsilon.svg?v=20261023-governance" width="42" height="42" alt="" /><span><strong>ЭПСИЛОН</strong><small>УПРАВЛЕНИЕ РАЗРАБОТКОЙ</small></span></a>
+      <a class="brand" href="/dashboard" data-route="dashboard" aria-label="ЭПСИЛОН — дашборд"><img src="/assets/epsilon.svg?v=20261023-auth" width="42" height="42" alt="" /><span><strong>ЭПСИЛОН</strong><small>УПРАВЛЕНИЕ РАЗРАБОТКОЙ</small></span></a>
       <div class="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
       <nav aria-label="Разделы системы">
         <a href="/dashboard" data-route="dashboard"><span class="nav-symbol">▦</span>Дашборд</a>
@@ -43,10 +39,11 @@
           <label class="control compact"><span>Проект</span><select id="projectSelect" aria-label="Текущий проект"><option value="all">Весь портфель · 3 проекта</option><option value="aurora">AURORA-02 · Силовой модуль</option><option value="orbit">ORBIT-01 · Контур навигации</option><option value="nova">NOVA-03 · Оптический модуль</option></select></label>
           <label class="control compact"><span>Период</span><select id="periodSelect" aria-label="Период"><option value="q3">Q3 2026 · факт</option><option value="q4">Q4 2026 · прогноз</option></select></label>
           <button class="user-button" id="currentUserButton" type="button" aria-label="Открыть настройки пользователей"><span id="currentUserInitials">АК</span></button>
+          <span class="auth-account-label" id="authAccountLabel" hidden></span><button class="btn small" id="logoutButton" type="button" hidden>Выйти</button>
         </div>
       </header>
       <div class="content">
-        <div class="access-demo-notice"><span class="eyebrow">ДЕМОНСТРАЦИЯ МОДЕЛИ ДОСТУПА</span><p id="accessContext"></p><small>Переключатель демонстрирует роли, а не авторизует пользователя. Все данные прототипа локальны; серверной защиты и чатов пока нет.</small></div>
+        <div class="access-demo-notice"><span class="eyebrow">ЛИЧНАЯ УЧЁТНАЯ ЗАПИСЬ / ПРОТОТИП РАБОЧИХ ДАННЫХ</span><p id="accessContext"></p><small>Вход, пароли и полномочия учётных записей контролирует сервер. Рабочие данные разделов пока демонстрационные и хранятся в браузере; не размещайте реальные документы. Модуль переписок не реализован.</small></div>
         <div class="access-readonly" id="accessReadOnly" hidden>Только чтение. Изменение данных, верификация и выгрузка этим допуском не разрешены.</div>
         <section class="page-view" id="view-dashboard" data-view="dashboard" aria-labelledby="dashboardTitle">
           <div class="page-heading"><div><span class="eyebrow scope-label">ПОРТФЕЛЬ / 03 ПРОЕКТА</span><h1 id="dashboardTitle">Дашборд</h1><p id="dashboardSubtitle">Расходы, исполнение и готовность к следующей итерации.</p></div><button class="btn primary" id="dashboardExport" type="button">↓ Сформировать отчёт</button></div>
@@ -135,9 +132,10 @@
             <article class="panel"><span class="eyebrow">06 / ИСПОЛНЕНИЕ</span><h2>Сотрудник</h2><p>Задачи в допущенных проектах, рабочая информация своего отдела. Нет сводной аналитики, бюджета, админки и чужих разделов без дополнительного чтения.</p><p>Личные переписки доступны только участникам. Модуль чатов пока не реализован.</p><strong>Должность и роль — разные сущности.</strong></article>
           </div></div>
           <div data-admin-panel="governance" hidden><article class="panel"><div class="panel-head"><h2>Контроль полномочий Суперадмина</h2><span class="unit">ТРИ РАЗНЫХ РУКОВОДИТЕЛЯ / ОДИН ВЛАДЕЛЕЦ</span></div><div id="superAdminPanel"></div><div id="superTransferRows"></div></article><article class="panel" id="deletedUsersArchive" hidden><div class="panel-head"><h2>Архив удалённых учётных записей</h2><span class="unit">ИСТОРИЯ СОХРАНЯЕТСЯ / ДОСТУП ЗАКРЫТ</span></div><div id="deletedUserRows"></div></article></div>
-          <div data-admin-panel="audit" hidden><article class="panel"><div class="panel-head"><h2>Журнал административных действий</h2><span class="unit">КТО / КОГДА / ЧТО / ОСНОВАНИЕ</span></div><p class="admin-explanation">Журнал демонстрационный и хранится в браузере. Для неизменяемого аудита необходим сервер. Содержимое переписок не записывается.</p><div id="adminAuditRows"></div></article></div>
+          <div data-admin-panel="audit" hidden><article class="panel"><div class="panel-head"><h2>Журнал административных действий</h2><span class="unit">КТО / КОГДА / ЧТО / ОСНОВАНИЕ</span></div><p class="admin-explanation">Изменения учётных записей и допусков сохраняются на сервере. Пароли и содержимое переписок в журнал не записываются. Защита аудита от вмешательства оператора БД — отдельный этап.</p><div id="adminAuditRows"></div></article></div>
+          <div data-admin-panel="credentials" hidden><article class="panel"><div class="panel-head"><h2>Запросы на восстановление</h2><span class="unit">ПРОВЕРКА ЛИЧНОСТИ / ВЫДАЧА ВРУЧНУЮ</span></div><p class="admin-explanation">Запрос сам по себе не меняет пароль. Сначала свяжитесь с сотрудником по доверенному каналу. Пароли руководителей сбрасывает только Суперадмин. Утерянный пароль самого Суперадмина восстанавливается через сервер.</p><div id="authRecoveryRows"></div></article><article class="panel"><div class="panel-head"><h2>База временных паролей</h2><button class="btn" id="authLoadVault" type="button" hidden>Показать действующие временные пароли</button></div><p class="admin-explanation">Только Суперадмин видит действующие временные пароли. После личной смены или истечения срока они исчезают. Личные пароли не отображаются и хранятся только как хеши.</p><div id="authVaultRows"></div></article></div>
         </section>
-        <section class="page-view" id="view-access-denied" data-view="access-denied" hidden aria-labelledby="accessDeniedTitle"><article class="panel admin-denied"><span class="eyebrow">ДОСТУП ПРИОСТАНОВЛЕН</span><h1 id="accessDeniedTitle">Доступ ограничен</h1><p id="accessDeniedText">Нет допуска к проектам. Обратитесь к администратору или руководителю.</p><p class="form-note">Демо-переключатель сверху остаётся доступен для проверки других ролей. Это не механизм обхода реальной авторизации: серверной авторизации в прототипе нет.</p></article></section>
+        <section class="page-view" id="view-access-denied" data-view="access-denied" hidden aria-labelledby="accessDeniedTitle"><article class="panel admin-denied"><span class="eyebrow">ДОСТУП ПРИОСТАНОВЛЕН</span><h1 id="accessDeniedTitle">Доступ ограничен</h1><p id="accessDeniedText">Нет допуска к проектам. Обратитесь к администратору или руководителю.</p><p class="form-note">Вход под другой учётной записью возможен только после выхода и ввода её пароля. При блокировке сервер завершает сессии.</p></article></section>
         <footer class="workspace-footer"><span>ЭПСИЛОН / R&D WORKSPACE</span><span id="snapshotDate">Демонстрационные данные · 04.10.2026</span></footer>
       </div>
     </main>
@@ -168,6 +166,8 @@
         <label class="control"><span>Отдел</span><select name="departmentId"></select></label>
         <label class="control full"><span>Статус учётной записи</span><select name="status"><option value="active">Активен</option><option value="inactive">Доступ неактивен</option><option value="blocked">Заблокирован</option><option value="deleted">Удалён</option></select></label>
         <p class="form-note full" id="userRoleHint"></p>
+        <p class="form-note full" id="userCredentialsHint" hidden></p>
+        <a class="btn full" id="changeOwnPassword" href="/account" hidden>Сменить личный пароль</a>
         <fieldset class="full project-permissions"><legend>Допуск к проектам</legend><div class="admin-checks" id="userProjectChecks"></div></fieldset>
         <fieldset class="full admin-access-controls" id="userAccessControls"><legend>Просмотр информации разделов</legend><p class="form-note">Право чтения не даёт право изменения или верификации. Для администратора эти настройки не заменяют допуск по инциденту. Чаты в матрицу не входят.</p><div id="userAccessMatrix"></div></fieldset>
         <fieldset class="full admin-access-controls" id="userPMControls" hidden><legend>Полномочия руководителя проектов</legend><p class="form-note" id="userPMNote"></p><div id="userPMMatrix"></div></fieldset>
@@ -179,6 +179,8 @@
       <div class="dialog-actions"><button class="btn" type="button" data-close="userDialog">Отмена</button><button class="btn primary" type="submit">Сохранить настройки</button></div>
     </form>
   </dialog>
+  <dialog id="issuedPasswordDialog" aria-labelledby="issuedPasswordTitle"><div class="dialog-head"><h2 id="issuedPasswordTitle">Временный пароль выдан</h2><button class="icon-button" data-close="issuedPasswordDialog" type="button" aria-label="Закрыть">×</button></div><div class="dialog-body"><p>Передайте пароль пользователю лично по доверенному каналу. Автоматическая отправка сообщений не выполняется.</p><label class="control"><span>Временный пароль</span><input id="issuedPassword" type="password" readonly autocomplete="off" /></label><button class="btn" id="showIssuedPassword" type="button">Показать / скрыть пароль</button><p class="form-note" id="issuedPasswordExpiry"></p><p class="form-note">После закрытия окна пароль остаётся доступен только Суперадмину в базе временных паролей до смены или истечения срока.</p></div><div class="dialog-actions"><button class="btn primary" data-close="issuedPasswordDialog" type="button">Готово</button></div></dialog>
+  <dialog id="passwordResetDialog" aria-labelledby="passwordResetTitle"><form id="passwordResetForm"><div class="dialog-head"><h2 id="passwordResetTitle">Новый временный пароль</h2><button class="icon-button" data-close="passwordResetDialog" type="button" aria-label="Закрыть">×</button></div><div class="dialog-body"><input type="hidden" name="userId" /><input type="hidden" name="requestId" /><p id="passwordResetName"></p><p class="form-note">Прежний пароль перестанет работать, все сессии пользователя будут завершены. Новый пароль нужно передать лично.</p><label class="pm-deadline"><input name="identityVerified" type="checkbox" required /> Я проверил личность заявителя по доверенному каналу</label><label class="control"><span>Основание *</span><textarea name="reason" rows="3" required maxlength="1200"></textarea></label><p class="form-error" id="passwordResetError" role="alert" hidden></p></div><div class="dialog-actions"><button class="btn" data-close="passwordResetDialog" type="button">Отмена</button><button class="btn primary" type="submit">Выдать временный пароль</button></div></form></dialog>
   <dialog id="reportDialog" aria-labelledby="reportDialogTitle"><form id="reportForm"><div class="dialog-head"><h2 id="reportDialogTitle">Сформировать отчёт</h2><button class="icon-button" type="button" data-close="reportDialog" aria-label="Закрыть">×</button></div><div class="dialog-body"><p id="reportContext"></p><label class="control"><span>Формат</span><select name="format"><option value="word">Word · обзор проекта (.doc)</option><option value="excel">Excel · детализация (.csv)</option><option value="json">JSON · полный снимок</option></select></label></div><div class="dialog-actions"><button class="btn" type="button" data-close="reportDialog">Отмена</button><button class="btn primary" type="submit">Скачать отчёт</button></div></form></dialog>
   <dialog id="componentDialog" aria-labelledby="componentDialogTitle"><form id="componentForm"><div class="dialog-head"><div><span class="eyebrow" id="componentFormContext"></span><h2 id="componentDialogTitle">Изменение компонента</h2></div><button class="icon-button" type="button" data-close="componentDialog" aria-label="Закрыть">×</button></div><div class="dialog-body form-grid">
     <label class="control"><span>Код компонента *</span><input name="code" maxlength="40" required /></label><label class="control"><span>Новая ревизия *</span><input name="revision" maxlength="24" required placeholder="Rev D" /></label>

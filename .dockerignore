@@ -4,4 +4,7 @@
 compose.yaml
 .env
 .env.*
+**/.env*
+node_modules/
+.auth-preview/
 deploy/dokploy-*.mjs

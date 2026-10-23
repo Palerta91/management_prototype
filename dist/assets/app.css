@@ -216,6 +216,9 @@ input[type=checkbox] { accent-color:var(--accent); }
 .admin-tab[aria-selected=true] { color:var(--accent); border-bottom-color:var(--accent); background:#143033; }
 .admin-panel-head { flex-wrap:wrap; }
 .admin-row-actions { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+.auth-account-label { max-width:210px; font-size:10px; line-height:1.7; color:var(--muted); }
+.vault-password { padding:10px; background:#0b1218; border:1px solid var(--line); color:var(--accent); font:13px var(--mono); max-width:100%; margin:10px 12px 10px 0; }
+.auth-startup-error { margin:40px; border-left:2px solid var(--bad); padding:20px; color:var(--text); }
 .admin-department-row th { background:#13282d; color:var(--accent); text-align:left; font:11px var(--mono); padding:13px 18px; letter-spacing:1px; border-top:1px solid #36565c; }
 #adminUserRows td:last-child { min-width:235px; max-width:320px; }
 .badge.super { color:#c9b7ff; border-color:#675299; background:#251e39; }

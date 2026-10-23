@@ -5,3 +5,4 @@
 .openai/
 deploy/dokploy-*.mjs
 node_modules/
+.auth-preview/

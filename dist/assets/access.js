@@ -1,6 +1,7 @@
 'use strict';
 
-// Demonstration policy only. Production enforcement must live on the server.
+// Shared UI policy, also executed by server/policy.mjs for account mutations.
+// Business records remain demonstration data, not a server-side ERP.
 const accessRoles={admin:'Администратор',leader:'Руководитель',head:'Руководитель отдела',project_manager:'Руководитель проектов',employee:'Сотрудник'};
 const accessSections={dashboard:'Сводная аналитика',planning:'Планирование',technology:'Разработки / состав изделия',production:'Производство',quality:'Контроль качества',testing:'Испытания',purchases:'Поставки',budget:'Бюджет',changes:'Корректировки',reports:'Отчёты'};
 let accessState,accessTab='users',editingAccessProject=null;
@@ -236,6 +237,7 @@ function renderAccessUI(){
   const a=accessActor();document.body.dataset.accessRole=a?.role??'';
   $('demoActor').innerHTML=accessOptions(users.filter(u=>u.status!=='deleted'||u.id===a?.id).map(u=>({id:u.id,name:u.name+' · '+accessRoleLabel(u)+(u.status==='active'?'':' · '+accessStatusLabel(u))})),a?.id);
   $('currentUserInitials').textContent=initials(a?.name??'—');
+  if(globalThis.epsilonAuth){$('demoActor').closest('label').hidden=true;$('demoActor').disabled=true;$('authAccountLabel').hidden=false;$('authAccountLabel').textContent=a?.name+' · '+accessRoleLabel(a);$('logoutButton').hidden=false;}
   const generated={dashboard:['dashboardMetrics','spendChart','statusChart','radarChart','projectCards','attentionList'],planning:['kanbanBoard','boardStats'],technology:['techProduct','techMetrics','techRows','techBlockerList','techRequestList','techHistory'],production:['productionMetrics','productionChart','productionStatus','productionShipmentRows','productionDefectRows','productionCostRows','productionRunRows'],purchases:['purchaseMetrics','purchaseRows','techPurchaseInbox'],quality:['qualityMetrics','qualityList','testList','techVerificationInbox'],testing:['testingRequests','testingResults'],budget:['budgetMetrics','waterfall','iterationBudget','proposedBudget'],changes:['changeMetrics','changeList'],reports:['reportHistory'],admin:['adminUserRows','adminAccessRows','adminProjectRows','adminAuditRows','incidentRows','superAdminPanel','superTransferRows','deletedUserRows']};
   for(const [route,ids] of Object.entries(generated))if(!accessCanRoute(route))for(const id of ids)$(id).innerHTML='';
   document.querySelectorAll('.sidebar nav [data-route]').forEach(el=>el.hidden=!accessCanRoute(el.dataset.route));
@@ -261,7 +263,7 @@ function renderAccessUI(){
 }
 function accessStatusLabel(u){return u.status==='active'?'Активен':u.status==='blocked'?'Заблокирован':u.status==='deleted'?'Учётная запись удалена':u.accessRevokedAt?'Доступ отозван':'Неактивен';}
 function accessUserActions(u){
-  return '<div class="admin-row-actions">'+(accessCanManageUser(u)?'<button class="btn small" data-user="'+u.id+'" type="button">Настроить</button>':'')+(accessCanUserAction(u,'block')?'<button class="btn small '+(u.status==='blocked'?'':'danger')+'" data-block-user="'+u.id+'" type="button">'+(u.status==='blocked'?'Разблокировать':'Блокировать')+'</button>':'')+(accessCanUserAction(u,'revoke')&&u.status==='active'?'<button class="btn small" data-user-action="revoke" data-target-user="'+u.id+'" type="button">Отозвать доступ</button>':'')+(accessCanUserAction(u,'restore')&&u.status==='inactive'?'<button class="btn small" data-user-action="restore" data-target-user="'+u.id+'" type="button">Вернуть доступ</button>':'')+(accessCanUserAction(u,'delete')?'<button class="btn small danger" data-user-action="delete" data-target-user="'+u.id+'" type="button">Удалить</button>':'')+'</div>';
+  return '<div class="admin-row-actions">'+(accessCanManageUser(u)?'<button class="btn small" data-user="'+u.id+'" type="button">Настроить</button>':'')+(globalThis.authCanResetUser?.(u)?'<button class="btn small" data-password-reset="'+u.id+'" type="button">Новый временный пароль</button>':'')+(accessCanUserAction(u,'block')?'<button class="btn small '+(u.status==='blocked'?'':'danger')+'" data-block-user="'+u.id+'" type="button">'+(u.status==='blocked'?'Разблокировать':'Блокировать')+'</button>':'')+(accessCanUserAction(u,'revoke')&&u.status==='active'?'<button class="btn small" data-user-action="revoke" data-target-user="'+u.id+'" type="button">Отозвать доступ</button>':'')+(accessCanUserAction(u,'restore')&&u.status==='inactive'?'<button class="btn small" data-user-action="restore" data-target-user="'+u.id+'" type="button">Вернуть доступ</button>':'')+(accessCanUserAction(u,'delete')?'<button class="btn small danger" data-user-action="delete" data-target-user="'+u.id+'" type="button">Удалить</button>':'')+'</div>';
 }
 function accessRoster(people){
   const query=$('adminUserSearch').value.trim().toLowerCase(),rank={leader:0,admin:1,head:2,project_manager:3,employee:4};
@@ -275,13 +277,14 @@ function accessRoster(people){
 function renderAccessPortal(){
   if(!accessCanAdmin())return;
   const a=accessActor(),head=a.role==='head';
-  const tabs={users:'Пользователи',...(head?{}:{access:'Допуски к данным',incidents:'Доступ по инцидентам',projects:'Проекты и бюджеты'}),departments:'Отделы и справочники',matrix:'Правила ролей',...(a.role==='leader'?{governance:'Суперадмин / передача'}:{}),...(head?{}:{audit:'Журнал действий'})};
+  const tabs={users:'Пользователи',...(head?{}:{access:'Допуски к данным',incidents:'Доступ по инцидентам',projects:'Проекты и бюджеты'}),departments:'Отделы и справочники',matrix:'Правила ролей',...(a.role==='leader'?{governance:'Суперадмин / передача'}:{}),...(globalThis.epsilonAuth?.canHandleRecovery?{credentials:'Пароли и восстановление'}:{}),...(head?{}:{audit:'Журнал действий'})};
   if(!(accessTab in tabs))accessTab='users';
   $('adminTabs').innerHTML=Object.entries(tabs).map(([id,label])=>'<button class="admin-tab" role="tab" aria-selected="'+(id===accessTab)+'" data-admin-tab="'+id+'" type="button">'+label+'</button>').join('');
   $('adminPanelTitle').textContent=head?'Команда отдела «'+accessDepartment().name+'»':'Администрирование';
   const people=users.filter(u=>u.status!=='deleted'&&(!head||u.departmentId===a.departmentId));
   $('adminUserRows').innerHTML=accessRoster(people);
   document.querySelectorAll('[data-admin-panel]').forEach(el=>el.hidden=el.dataset.adminPanel!==accessTab);
+  globalThis.renderAuthPanel?.();
   $('adminAddProject').hidden=a.role!=='leader';$('adminAddDepartment').hidden=a.role!=='leader';$('adminIssueGrant').hidden=a.role!=='leader';
   $('adminIncidentNote').textContent=a.role==='leader'?'Только чтение. Выберите администратора, проекты, разделы, номер инцидента и срок. Руководитель может отозвать допуск немедленно.':'Администратор не выдаёт допуск себе. Запросите его у руководителя; чаты, экспорт и изменение данных исключены.';
   const grants=accessState.grants.filter(g=>a.role==='leader'||g.adminId===a.id);
@@ -300,10 +303,11 @@ function openAccessUserForm(id=null){
   if(!accessActive()||(!self&&!accessCanAdmin())||(u&&!self&&!accessCanManageUser(u))){notify('Нет права изменять этого пользователя.');return;}
   editingUser=id;const f=$('userForm');f.reset();const head=a.role==='head',manage=accessCanAdmin()&&(!u||accessCanManageUser(u));
   $('userDialogTitle').textContent=u?'Профиль · '+u.name:'Добавить сотрудника';
+  if(globalThis.epsilonAuth){$('changeOwnPassword').hidden=!self;$('userCredentialsHint').hidden=false;$('userCredentialsHint').textContent=u?(u.passwordState??'Пароль хранится на сервере'):'При сохранении сервер выдаст случайный временный пароль на 48 часов. Его необходимо передать пользователю лично.';}
   for(const k of ['name','email','position','timezone','notifications'])f.elements[k].value=u?.[k]??({timezone:'Europe/Vienna',notifications:'assigned'}[k]??'');
   f.elements.position.readOnly=!manage;f.elements.email.readOnly=!manage;f.elements.name.readOnly=!manage&&!self;
   const allowedRoles=a.role==='leader'?Object.keys(accessRoles):a.role==='admin'?['admin','head','project_manager','employee']:['employee'];
-  f.elements.role.innerHTML=Object.entries(accessRoles).filter(([r])=>allowedRoles.includes(r)||r===u?.role).map(([r,label])=>'<option value="'+r+'">'+label+'</option>').join('');f.elements.role.value=u?.role??'employee';f.elements.role.disabled=!manage||head||self&&a.role==='admin'||u?.role==='leader'&&a.role!=='leader';
+  f.elements.role.innerHTML=Object.entries(accessRoles).filter(([r])=>allowedRoles.includes(r)||r===u?.role).map(([r,label])=>'<option value="'+r+'">'+label+'</option>').join('');f.elements.role.value=u?.role??'employee';f.elements.role.disabled=!manage||head||self&&a.role==='admin'||u?.role==='leader'&&a.role!=='leader'||u?.id===accessState.superAdminId;
   f.elements.departmentId.innerHTML=accessOptions(accessState.departments.filter(d=>!head||d.id===a.departmentId),u?.departmentId??a.departmentId);f.elements.departmentId.disabled=!manage||head;
   const canProjects=manage&&(!head||!u||u.role==='project_manager')&&!(self&&a.role==='admin')&&!(u?.role==='leader'&&a.role!=='leader');
   $('userProjectChecks').innerHTML=accessProjectChecks('projects',u?.projects??[],head?accessProjects():projectIds,!canProjects);
@@ -411,7 +415,7 @@ function accessSafeSnapshot(){
   return {system:'ЭПСИЛОН',demo:true,actor:{id:accessActor()?.id,role:accessActor()?.role},projects:accessProjects().map(id=>({id,code:planningProjects[id].code})),sections:Object.keys(accessSections).filter(s=>accessProjects().some(p=>accessCan(s,p))),tasks:tasks.filter(accessTaskVisible).map(t=>({id:t.id,project:t.project,title:t.title,stage:t.stage,due:t.due,owner:taskOwner(t)}))};
 }
 function setupAccess(){
-  $('demoActor').addEventListener('change',e=>{accessState.actorId=e.target.value;document.querySelectorAll('dialog[open]').forEach(d=>d.close());closeDrawer();persist();navigate(accessHome());});
+  $('demoActor').addEventListener('change',e=>{if(globalThis.epsilonAuth)return;accessState.actorId=e.target.value;document.querySelectorAll('dialog[open]').forEach(d=>d.close());closeDrawer();persist();navigate(accessHome());});
   $('adminUserSearch').addEventListener('input',renderAccessPortal);$('adminAddUser').addEventListener('click',()=>openAccessUserForm());
   $('adminIssueGrant').addEventListener('click',openAccessGrant);$('adminAddDepartment').addEventListener('click',openAccessDepartment);$('adminAddProject').addEventListener('click',()=>openAccessProject());
   for(const [id,fn] of [['accessBlockForm',saveAccessBlock],['incidentForm',saveAccessGrant],['departmentForm',saveAccessDepartment],['classificationForm',saveAccessClassification],['accessProjectForm',saveAccessProject],['transferDecisionForm',saveAccessTransferDecision]])$(id).addEventListener('submit',fn);
@@ -422,6 +426,7 @@ function setupAccess(){
   document.addEventListener('click',e=>{const tab=e.target.closest('[data-admin-tab]'),block=e.target.closest('[data-block-user]'),revoke=e.target.closest('[data-revoke-grant]'),project=e.target.closest('[data-edit-project]');if(tab){accessTab=tab.dataset.adminTab;renderAccessPortal();}if(block)openAccessBlock(block.dataset.blockUser);if(project)openAccessProject(project.dataset.editProject);if(revoke&&accessActor()?.role==='leader'){const f=$('accessRevokeForm');f.reset();f.elements.grantId.value=revoke.dataset.revokeGrant;$('accessRevokeError').hidden=true;$('accessRevokeDialog').showModal();}});
   window.setInterval(()=>{if(accessActor()?.role==='admin'&&currentRoute in accessSections){if(!accessCanRoute(currentRoute)){document.querySelectorAll('dialog[open]').forEach(d=>d.close());navigate('admin');notify('Временный допуск истёк или отозван.');}else render();}},15000);
   window.addEventListener('storage',event=>{
+    if(globalThis.epsilonAuth)return;
     if(event.key!==storageKey||!event.newValue)return;
     try{
       const next=normalizeRubDemoData(JSON.parse(event.newValue));if(next.access?.version!==1||!Array.isArray(next.users))return;
