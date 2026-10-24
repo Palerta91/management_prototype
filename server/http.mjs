@@ -4,7 +4,7 @@ import {resolve,extname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('../dist/',import.meta.url));
-const publicAssets=new Set(['/assets/login.js','/assets/login.css','/assets/epsilon.svg']);
+const publicAssets=new Set(['/assets/login.js','/assets/login.css','/assets/pending.js','/assets/epsilon.svg']);
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 export function createAuthServer(service,{origin,production=true}={}){
   const canonical=new URL(origin);
@@ -50,10 +50,11 @@ export function createAuthServer(service,{origin,production=true}={}){
       if(path==='/login'||path==='/account')filename='login.html';
       else if(publicAssets.has(path))filename=path.slice(1);
       else{
-        const auth=await service.store.transaction(s=>{service.cleanup(s);const a=service.session(s,rawCookie);return a?{mustChange:a.account.mustChange}:null;});
+        const auth=await service.store.transaction(s=>{service.cleanup(s);const a=service.session(s,rawCookie);return a?{mustChange:a.account.mustChange,pending:service.onboardingRequired(s,a.account)}:null;});
         if(!auth){if(path.startsWith('/assets/'))send(401,{error:'Требуется вход.'});else redirect('/login');return;}
         if(auth.mustChange){if(path.startsWith('/assets/'))send(403,{error:'Сначала замените временный пароль.'});else redirect('/account');return;}
-        filename=path.startsWith('/assets/')?path.slice(1):'index.html';
+        if(auth.pending){if(path==='/pending')filename='pending.html';else{if(path.startsWith('/assets/'))send(403,{error:'Дождитесь добавления Вашего профиля Руководителем'});else redirect('/pending');return;}}
+        else{if(path==='/pending'){redirect('/dashboard');return;}filename=path.startsWith('/assets/')?path.slice(1):'index.html';}
       }
       const file=resolve(root,filename);if(!file.startsWith(root.endsWith(sep)?root:root+sep)){send(404,{error:'Не найдено.'});return;}
       const content=await readFile(file);send(200,req.method==='HEAD'?'':content,types[extname(file)]??'application/octet-stream');

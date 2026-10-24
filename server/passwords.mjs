@@ -7,6 +7,13 @@ export const token=()=>randomBytes(32).toString('base64url');
 export const digest=value=>createHash('sha256').update(value).digest('hex');
 export const temporaryPassword=()=>randomBytes(18).toString('base64url');
 export function passwordValid(value){return typeof value==='string'&&value.length>=16&&value.length<=128;}
+export function safeHashForVerification(value,fallback){
+  if(typeof value!=='string'||typeof fallback!=='string')return fallback;
+  const parts=value.split('$');
+  if(parts.length!==6||parts.slice(0,4).join('$')!=='scrypt$131072$8$1'||!/^[-_A-Za-z0-9]+$/.test(parts[4])||!/^[-_A-Za-z0-9]+$/.test(parts[5]))return fallback;
+  if(Buffer.from(parts[4],'base64url').length!==16||Buffer.from(parts[5],'base64url').length!==64)return fallback;
+  return value;
+}
 export async function hashPassword(password){
   if(!passwordValid(password))throw new Error('Пароль должен содержать от 16 до 128 символов.');
   const salt=randomBytes(16),key=await derive(password,salt,64,params);

@@ -6,7 +6,7 @@ const elements=new Map();let stored=null;
 const getElement=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:true,innerHTML:'',textContent:'',close(){},showModal(){}});return elements.get(id);};
 const ctx=vm.createContext({structuredClone,console,URL,Blob,setTimeout:()=>0,clearTimeout(){},localStorage:{getItem:()=>stored,setItem:(_k,v)=>{stored=v;}},document:{getElementById:getElement,body:{append(){}},createElement:()=>({click(){},remove(){}})}});
 const source=file=>readFileSync(new URL('../dist/assets/'+file,import.meta.url),'utf8');
-for(const file of ['seed.js','technology.js','production.js','access.js'])vm.runInContext(source(file),ctx,{filename:file});
+for(const file of ['seed.js','technology.js','production.js','organization.js','access.js'])vm.runInContext(source(file),ctx,{filename:file});
 vm.runInContext(source('app.js').split("document.addEventListener('click',event=>")[0],ctx,{filename:'app.js'});
 const run=code=>vm.runInContext(code,ctx);
 run("accessState.actorId='director';");

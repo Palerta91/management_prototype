@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {MemoryStore,PostgresStore} from '../server/store.mjs';
 import {Pool} from 'pg';
 import {AuthService} from '../server/auth.mjs';
 import {createAuthServer} from '../server/http.mjs';
-import {hashPassword,verifyPassword} from '../server/passwords.mjs';
+import {hashPassword,verifyPassword,safeHashForVerification} from '../server/passwords.mjs';
 
 const rootPassword='Synthetic-Root-Password-2026!',personal='Synthetic-Personal-Secret-2026!';
 class ObservedPostgresStore extends PostgresStore{async transaction(fn){let snapshot;const result=await super.transaction(async s=>{const value=await fn(s);snapshot=structuredClone(s);return value;});this.state=snapshot;return result;}}
@@ -14,6 +15,10 @@ try{
 if(usePostgres){await store.init();assert.equal(await store.transaction(s=>Object.keys(s).length),0,'PostgreSQL test requires an EMPTY disposable database; existing records will not be overwritten.');}
 const service=new AuthService(store,randomBytes(32),{now:()=>now});
 await service.initialize({email:'root@epsilon.test',passwordHash:await hashPassword(rootPassword)});
+const rootHash=store.state.accounts.superadmin.passwordHash;
+assert.equal(safeHashForVerification(rootHash,service.dummyHash),rootHash);
+assert.equal(safeHashForVerification('',service.dummyHash),service.dummyHash,'An unprovisioned account must use the timing-safe dummy hash.');
+assert.equal(safeHashForVerification('scrypt$131072$8$1$bad$bad',service.dummyHash),service.dummyHash,'A malformed stored hash must use the dummy hash.');
 const call=(path,body,session={})=>service.handle('/api/auth/'+path,body?'POST':'GET',body??{},session);
 const login=async(email,password)=>{const r=await call('login',{email,password});assert.equal(r.status,200,JSON.stringify(r.body));return {cookie:r.setSession,csrf:r.body.csrf};};
 let root=await login('root@epsilon.test',rootPassword);
@@ -26,6 +31,12 @@ async function create(name,email,role='employee'){
   assert.equal(r.status,200,JSON.stringify(r.body));const user=r.body.bootstrap.workspace.users.find(u=>u.email===email);assert.ok(user);assert.ok(r.body.temporaryPassword);return {id:user.id,password:r.body.temporaryPassword};
 }
 const employee=await create('Тестовый сотрудник','employee@epsilon.test');
+const issuedEmployeeHash=store.state.accounts[employee.id].passwordHash;
+store.state.accounts[employee.id].passwordHash='';
+const noCredential=await call('login',{email:'employee@epsilon.test',password:'incorrect'});
+const missingAccount=await call('login',{email:'missing@epsilon.test',password:'incorrect'});
+assert.equal(noCredential.status,401);assert.deepEqual(noCredential.body,missingAccount.body,'Login failure must not enumerate accounts without a credential.');
+store.state.accounts[employee.id].passwordHash=issuedEmployeeHash;
 assert.equal((await call('administration',{operation:'constructor',payload:{}},root)).status,403);
 assert.equal((await call('administration',{operation:'user',payload:{fields:fields('Некорректная роль','invalid-role@epsilon.test','constructor'),checked:{projects:['aurora']}}},root)).status,403);
 assert.equal((await call('reset',{userId:'constructor',reason:'Некорректный id',identityVerified:true},root)).status,403);
@@ -72,6 +83,9 @@ for(const secret of [rootPassword,personal,employee.password,adminReset.body.tem
 for(const secret of ['passwordHash','ciphertext','csrfHash','EPSILON_VAULT_KEY'])assert.equal(JSON.stringify((await call('bootstrap',null,root)).body).includes(secret),false);
 // HTTP boundary: no assets before login, no cross-site JSON, no missing CSRF,
 // HttpOnly/SameSite cookies and no-store, forced password change, HTTPS fail-closed.
+const loginHtml=readFileSync(new URL('../dist/login.html',import.meta.url),'utf8'),loginJs=readFileSync(new URL('../dist/assets/login.js',import.meta.url),'utf8');
+for(const removed of ['ЕДИНЫЙ КОНТУР / ЛИЧНЫЙ ДОСТУП','От решения','БЕЗОПАСНЫЙ ВХОД','ЛОКАЛЬНЫЙ ТЕСТОВЫЙ КОНТУР','Локальная проверка. Используйте только синтетические тестовые учётные записи.'])assert.equal(loginHtml.includes(removed),false,`Login screen must omit ${removed}`);
+assert.equal(loginJs.includes('if(!safe)'),true,'HTTP login must remain blocked outside localhost even after removing the warning copy.');
 const server=createAuthServer(service,{origin:'http://127.0.0.1:4197',production:false});await new Promise(resolve=>server.listen(4197,'127.0.0.1',resolve));
 try{
   const base='http://127.0.0.1:4197',http=(path,options={})=>fetch(base+path,{redirect:'manual',...options});

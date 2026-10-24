@@ -8,13 +8,13 @@ const saved = normalizeRubDemoData(loadState());
 restoreProjectCatalog(saved);
 const projectIds = Object.keys(planningProjects);
 const roles = accessRoles;
-const routes = { dashboard:'Дашборд', planning:'Планирование', technology:'Технологическая карта', production:'Производство', purchases:'Закупки', budget:'Бюджет', quality:'Качество и брак', testing:'Испытания', changes:'Корректировки', reports:'Отчёты', users:'Пользователи',admin:'Администрирование','access-denied':'Доступ ограничен' };
+const routes = { dashboard:'Дашборд', planning:'Планирование', production:'Производство', purchases:'Закупки', budget:'Бюджет', quality:'Качество и брак', testing:'Испытания', changes:'Корректировки', reports:'Отчёты', users:'Пользователи',admin:'Администрирование','access-denied':'Доступ ограничен' };
 const stages = [
   { id:'backlog', label:'Бэклог', color:'#718493' },
-  { id:'approval', label:'К утверждению', color:'#a999ff' },
+  { id:'approval', label:'Ожидает', color:'#a999ff' },
   { id:'work', label:'В работе', color:'#63a7ff' },
   { id:'verification', label:'На верификации', color:'#55e6d2' },
-  { id:'decision', label:'Требует решения', color:'#f4ba4b' },
+  { id:'decision', label:'Блокеры', color:'#f4ba4b' },
   { id:'closed', label:'Завершено', color:'#4ddc8b' }
 ];
 const profiles = {
@@ -67,30 +67,42 @@ const initialBacklog = [
   { id:'backlog-nova', project:'nova', title:'Оценка альтернативного сенсора', ownerId:'team-11', due:'2026-10-29', plan:15, reason:'Сравнить стоимость, доступность и характеристики альтернативного комплектующего.' }
 ].map((item,index)=>({...item, code:'BL-'+String(index+1).padStart(3,'0'), stage:'backlog', baseline:displayDate(item.due), forecast:displayDate(item.due), actual:0, commitments:0, eac:item.plan, owner:'', health:'ok', healthText:'Бюджетная заявка', links:[], proposed:true }));
 
-function loadState() { let data={};try { const stored = JSON.parse(localStorage.getItem(storageKey)); if(stored&&typeof stored==='object')data=stored; } catch {}return globalThis.epsilonAuth?{...data,...globalThis.epsilonAuth.workspace}:data; }
-function validTask(task) { return task && /^[\w-]+$/.test(task.id) && projectIds.includes(task.project) && stages.some(stage => stage.id === task.stage) && typeof task.title === 'string' && task.title.length <= 140 && /^\d{4}-\d{2}-\d{2}$/.test(task.due) && ['plan','actual','commitments','eac'].every(key => Number.isFinite(task[key]) && task[key] >= 0 && task[key] <= 100000); }
+function loadState() { const workspace=globalThis.epsilonAuth?.workspace;if(workspace)return {...workspace,...(workspace.planning?{tasks:workspace.planning.tasks,taskEvents:workspace.planning.taskEvents,projectTags:workspace.planning.projectTags}:{})};let data={};try { const stored = JSON.parse(localStorage.getItem(storageKey)); if(stored&&typeof stored==='object')data=stored; } catch {}return data; }
+function validTask(task) { return task && /^[\w-]+$/.test(task.id) && projectIds.includes(task.project) && stages.some(stage => stage.id === task.stage) && typeof task.title === 'string' && task.title.length <= 140 && /^\d{4}-\d{2}-\d{2}$/.test(task.due) && ['plan','actual','commitments','eac'].every(key => task[key]===undefined||Number.isFinite(task[key]) && task[key] >= 0 && task[key] <= 100000); }
 function validUser(user) { return user && /^[\w-]+$/.test(user.id) && typeof user.name === 'string' && typeof user.email === 'string' && (Object.hasOwn(roles,user.role)||['manager','engineer','procurement','investor'].includes(user.role)) && ['active','inactive','blocked','deleted'].includes(user.status) && Array.isArray(user.projects) && user.projects.every(id => projectIds.includes(id)); }
 let tasks = Array.isArray(saved.tasks) && saved.tasks.length && saved.tasks.every(validTask) ? saved.tasks : structuredClone(planningCards);
 initialBacklog.forEach(task=>{if(!tasks.some(item=>item.id===task.id))tasks.push(structuredClone(task));});
 let users = Array.isArray(saved.users) && saved.users.length && saved.users.every(validUser) ? saved.users : structuredClone(defaultUsers);
 let reportHistory = Array.isArray(saved.reports) ? saved.reports.filter(item => item && typeof item.id === 'string' && item.snapshot).slice(0, 25) : [];
 let taskEvents = Array.isArray(saved.taskEvents) ? saved.taskEvents.filter(item => item && typeof item.taskId === 'string').slice(-100) : [];
+let taskReminderLog=Array.isArray(saved.taskReminderLog)?saved.taskReminderLog.filter(x=>typeof x==='string').slice(-1000):[];
+let projectTags = saved.projectTags && typeof saved.projectTags==='object' ? structuredClone(saved.projectTags) : {};
+let selectedCoExecutorIds=[];
+let selectedShareEditorIds=[];
 let scope = projectIds.includes(saved.scope) ? saved.scope : 'all';
 let period = saved.period === 'q4' ? 'q4' : 'q3';
 let currentRoute = 'dashboard';
 let editingTask = null;
 let editingUser = null;
 let selectedTask = null;
+let sharingTaskId = null;
 let dragId = null;
 let toastTimer;
 let drawerReturnFocus;
 initializeAccess(saved);
+if(!globalThis.epsilonAuth)for(const task of tasks)task.createdBy??=accessActor()?.id;
 initializeTechnology(saved);
 initializeProduction(saved);
 if(saved.baseCurrency!=='RUB'||saved.access?.governanceVersion!==1)persist();
+function applyPlanningState(planning){
+  if(!planning)return;tasks=Array.isArray(planning.tasks)?structuredClone(planning.tasks):[];taskEvents=Array.isArray(planning.taskEvents)?structuredClone(planning.taskEvents):[];projectTags=planning.projectTags&&typeof planning.projectTags==='object'?structuredClone(planning.projectTags):{};
+  if($('kanbanBoard'))render();
+}
+globalThis.applyPlanningState=applyPlanningState;
 
 function persist() {
-  try { localStorage.setItem(storageKey, JSON.stringify({ baseCurrency:'RUB', tasks, users, reports:reportHistory, taskEvents, scope, period, technology:technologyState(), production:productionData,access:accessState,projectCatalog:planningProjects })); return true; }
+  if(globalThis.epsilonAuth)return true;
+  try { localStorage.setItem(storageKey, JSON.stringify({ baseCurrency:'RUB', tasks, users, reports:reportHistory, taskEvents, taskReminderLog, scope, period, technology:technologyState(), production:productionData,access:accessState,projectCatalog:planningProjects })); return true; }
   catch { notify('Не удалось сохранить изменения в браузере. Экспортируйте снимок данных.'); return false; }
 }
 function notify(message) { $('toast').textContent = message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4200); }
@@ -169,18 +181,31 @@ function renderDashboard() {
   $('attentionCount').textContent=attention.length+' ПАКЕТОВ';
   $('attentionList').innerHTML=attention.length?attention.map(task=>'<div class="list-row clickable" data-task="'+escapeHtml(task.id)+'" tabindex="0" role="button"><div class="list-row-top"><h3>'+escapeHtml(task.title)+'</h3>'+badge(task.stage==='decision'?'РЕШЕНИЕ':'РИСК','warning')+'</div><p>'+escapeHtml(task.reason)+'</p><span class="unit">'+planningProjects[task.project].code+' · '+displayDate(task.due)+' · EAC '+money(task.eac)+'</span></div>').join(''):empty('Открытых рисков и решений нет');
 }
+const taskKindLabels={epic:'Эпик',task:'Задача',subtask:'Подзадача',fix:'Фикс'};
+function projectTagList(project){
+  if(!projectTags[project]){
+    const departments=accessState.departments.filter(d=>d.projects?.includes(project));
+    const members=users.filter(u=>u.status==='active'&&(u.role==='leader'||u.projects?.includes(project)));
+    const palette=['#55e6d2','#63a7ff','#a999ff','#f4ba4b','#f47b7b','#4ddc8b'];
+    projectTags[project]=[...departments.map((d,i)=>({id:'department-'+d.id,kind:'department',name:d.name,color:palette[i%palette.length],departmentId:d.id})),...members.map((u,i)=>({id:'user-'+u.id,kind:'user',name:u.name,color:palette[i%palette.length],userId:u.id,active:true}))];
+  }
+  return projectTags[project];
+}
+function taskTagMarkup(task,limit=4){return (task.tags??[]).map(id=>projectTagList(task.project).find(t=>t.id===id)).filter(Boolean).slice(0,limit).map(tag=>'<span class="task-tag"><i style="--tag-color:'+escapeHtml(tag.color)+'"></i>'+escapeHtml(tag.name)+'</span>').join('');}
 function taskCard(task) {
-  if(!accessCanFinance(task.project))return accessTaskCard(task);
-  const color=task.stage==='closed'?'#4ddc8b':task.health==='risk'?'#f47b7b':task.proposed?'#a999ff':'#63a7ff';
-  return '<button class="kanban-card" draggable="true" data-task="'+escapeHtml(task.id)+'" style="--card-color:'+color+'" type="button" aria-label="Открыть '+escapeHtml(task.title)+'"><span class="card-project">'+planningProjects[task.project].code+' · '+escapeHtml(task.code)+'<span class="grip" aria-hidden="true">⠿</span></span><h3>'+escapeHtml(task.title)+'</h3><div class="card-budget"><span><small>План</small><strong>'+money(task.plan)+'</strong></span><span><small>EAC</small><strong class="accent">'+money(task.eac)+'</strong></span><span><small>Факт</small><strong>'+money(task.actual)+'</strong></span><span><small>Обязательства</small><strong>'+money(task.commitments)+'</strong></span></div><span class="card-owner"><span>'+escapeHtml(taskOwner(task))+'</span><time datetime="'+task.due+'">'+displayDate(task.due).slice(0,5)+'</time></span>'+(task.proposed?'<span class="card-proposal">Бюджетная заявка</span>':'')+'</button>';
+  const color=task.stage==='closed'?'#4ddc8b':task.stage==='decision'?'#f4ba4b':task.stage==='verification'?'#55e6d2':'#63a7ff';
+  const coExecutors=(task.coExecutorIds??[]).map(id=>users.find(u=>u.id===id)?.name).filter(Boolean);
+  const hierarchy=task.parentId?tasks.find(t=>t.id===task.parentId):null;
+  const due=new Date(task.due+'T00:00:00');
+  return '<button class="kanban-card task-card" draggable="'+(accessCanMoveTask(task)?'true':'false')+'" data-task="'+escapeHtml(task.id)+'" style="--card-color:'+color+'" type="button" aria-label="Открыть '+escapeHtml(task.title)+'"><span class="card-project">'+escapeHtml(planningProjects[task.project].code)+' · '+escapeHtml(task.code??'')+'<span class="grip" aria-hidden="true">⠿</span></span><div class="task-card-meta"><span>'+escapeHtml(taskKindLabels[task.kind]??'Задача')+'</span>'+(task.taskType==='recurring'?'<span>Регулярная</span>':'')+'</div><h3>'+escapeHtml(task.title)+'</h3>'+(hierarchy?'<p class="task-parent">↳ '+escapeHtml(hierarchy.title)+'</p>':'')+(task.description||task.reason?'<p class="task-description">'+escapeHtml(task.description||task.reason)+'</p>':'')+'<div class="task-tags">'+taskTagMarkup(task)+'</div><span class="card-owner"><span>'+escapeHtml(taskOwner(task))+(coExecutors.length?' · +'+coExecutors.length:'')+'</span><time datetime="'+task.due+'">'+displayDate(task.due).slice(0,5)+'</time></span>'+(due<new Date(new Date().toDateString())&&task.stage!=='closed'?'<span class="task-late">Просрочено</span>':'')+'</button>';
 }
 function renderPlanning() {
   const query=$('taskSearch').value.trim().toLocaleLowerCase('ru');
   const all=tasks.filter(inScope).filter(accessTaskVisible),cards=all.filter(task=>(task.title+' '+task.code+' '+taskOwner(task)+' '+planningProjects[task.project].code).toLocaleLowerCase('ru').includes(query));
-  const t=totals(),proposed=all.filter(task=>task.proposed&&!task.superseded).reduce((sum,task)=>sum+task.plan,0);
-  $('boardScope').textContent=scopeName(); $('boardCount').textContent=cards.length+'/'+all.length+' пакетов';
-  $('boardStats').innerHTML='<span>Базовый бюджет<strong>'+money(t.base)+'</strong></span><span>Факт + обязательства<strong>'+money(t.actual+t.commitments)+'</strong></span><span>Прогноз EAC<strong class="accent">'+money(t.eac)+'</strong></span><span>Новые заявки<strong>'+money(proposed)+'</strong></span>';
-  $('kanbanBoard').innerHTML=stages.map(stage=>{const items=cards.filter(task=>task.stage===stage.id);return '<section class="kanban-column" aria-label="'+stage.label+'"><div class="kanban-column-head" style="--stage-color:'+stage.color+'"><h2>'+stage.label+'</h2><span>'+String(items.length).padStart(2,'0')+'</span></div><div class="kanban-cards" data-drop-stage="'+stage.id+'">'+items.map(taskCard).join('')+(stage.id==='backlog'?'<button class="backlog-add" data-add-task type="button">+ Добавить карточку</button>':'')+(!items.length&&stage.id!=='backlog'?empty('Карточек пока нет'):'')+'</div></section>';}).join('');
+  const open=all.filter(task=>task.stage!=='closed'),overdue=open.filter(task=>task.due<new Date().toISOString().slice(0,10)),verification=open.filter(task=>task.stage==='verification'),blocked=open.filter(task=>task.stage==='decision');
+  $('boardScope').textContent=scopeName(); $('boardCount').textContent=cards.length+' задач';
+  $('boardStats').innerHTML='<span>В работе<strong>'+open.length+'</strong></span><span>Скоро срок<strong>'+all.filter(task=>task.stage!=='closed'&&task.due>=new Date().toISOString().slice(0,10)&&task.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10)).length+'</strong></span><span>На верификации<strong>'+verification.length+'</strong></span><span>Просрочено / блокеры<strong class="'+(overdue.length+blocked.length?'negative':'')+'">'+(overdue.length+blocked.length)+'</strong></span>';
+  $('kanbanBoard').innerHTML=stages.map(stage=>{const items=cards.filter(task=>task.stage===stage.id);return '<section class="kanban-column" aria-label="'+stage.label+'"><div class="kanban-column-head" style="--stage-color:'+stage.color+'"><h2>'+stage.label+'</h2><span>'+String(items.length).padStart(2,'0')+'</span></div><div class="kanban-cards" data-drop-stage="'+stage.id+'">'+items.map(taskCard).join('')+(stage.id==='backlog'?'<button class="backlog-add" data-add-task type="button">+ Создать задачу</button>':'')+(!items.length&&stage.id!=='backlog'?empty('Задач пока нет'):'')+'</div></section>';}).join('');
 }
 function renderPurchases() {
   const rows=purchases.filter(inScope),filter=$('purchaseFilter').value;
@@ -234,8 +259,8 @@ function render() {
   $('sidebarScope').textContent=scope==='all'?'Весь портфель':planningProjects[scope].code;
   $('sidebarScopeNote').textContent=scope==='all'?allowed.length+' проектов · доступный контур':planningProjects[scope].name;
   document.querySelectorAll('.scope-label').forEach(label=>label.textContent=scope==='all'?'ДОСТУПНЫЕ ПРОЕКТЫ / '+allowed.length:planningProjects[scope].code+' / '+planningProjects[scope].direction.toUpperCase());
-  $('snapshotDate').textContent=period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
-  const renderers={dashboard:renderDashboard,planning:renderPlanning,purchases:renderPurchases,budget:renderBudget,quality:renderQuality,changes:renderChanges,admin:renderUsers,reports:renderReports,technology:renderTechnology,production:renderProduction,testing:renderTestingWorkspace};
+  $('snapshotDate').textContent=globalThis.epsilonAuth?'Тестовые данные · контур задач в PostgreSQL':period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
+  const renderers={dashboard:renderDashboard,planning:renderPlanning,purchases:renderPurchases,budget:renderBudget,quality:renderQuality,changes:renderChanges,admin:renderUsers,reports:renderReports,production:renderProduction,testing:renderTestingWorkspace};
   if(accessCanRoute(currentRoute))renderers[currentRoute]?.();
   if(currentRoute==='purchases')$('techPurchaseInbox').innerHTML=renderTechRequestList(techRequests.filter(inScope).filter(r=>r.type==='purchase'));
   if(currentRoute==='quality')$('techVerificationInbox').innerHTML=empty('Заявки и протоколы ведутся в разделе «Испытания». Для доступа требуется соответствующее полномочие.');
@@ -258,11 +283,10 @@ function navigate(route,options={}) {
   if(route==='users')route='admin';
   if(!accessCanRoute(route))route=accessHome();
   const allowed=accessScopeProjects(route);if(scope!=='all'&&!allowed.includes(scope)||scope==='all'&&allowed.length===1)scope=allowed[0]??'all';
-  if(route==='technology'){if(!allowed.includes(techProject))techProject=allowed[0]??techProject;if(scope==='all')scope=techProject;}
   closeDrawer(); currentRoute=route;
   render();
   $('periodSelect').closest('label').hidden=['production','admin','access-denied'].includes(route);
-  $('snapshotDate').textContent=route==='production'?'Демонстрационный производственный срез · '+displayDate(productionAsOf):period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
+  $('snapshotDate').textContent=globalThis.epsilonAuth?'Тестовые данные · контур задач в PostgreSQL':route==='production'?'Демонстрационный производственный срез · '+displayDate(productionAsOf):period==='q3'?'Демонстрационные данные · 04.10.2026':'Прогнозный сценарий · Q4 2026';
   document.querySelectorAll('[data-view]').forEach(view=>view.hidden=view.dataset.view!==route);
   document.querySelectorAll('.sidebar nav [data-route]').forEach(link=>{if(link.dataset.route===route)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
   $('currentSection').textContent=routes[route]; document.title='ЭПСИЛОН · '+routes[route];
@@ -278,68 +302,95 @@ function selectProject(id) {
 }
 
 function fillOwners(project,selectedId) {
-  const available=users.filter(user=>user.status==='active'&&(['leader','head'].includes(accessActor()?.role)||user.projects.includes(project)));
-  $('taskForm').elements.owner.innerHTML=available.map(user=>'<option value="'+escapeHtml(user.id)+'">'+escapeHtml(user.name)+'</option>').join('');
-  if(available.some(user=>user.id===selectedId))$('taskForm').elements.owner.value=selectedId;
+  const available=users.filter(user=>user.status==='active'&&accessProjects(user).includes(project)&&accessCan('planning',project,'read',user));
+  $('taskForm').elements.ownerId.innerHTML=available.map(user=>'<option value="'+escapeHtml(user.id)+'">'+escapeHtml(user.name)+'</option>').join('');
+  $('coExecutorSelect').innerHTML='<option value="">Добавить сотрудника</option>'+available.map(user=>'<option value="'+escapeHtml(user.id)+'">'+escapeHtml(user.name)+'</option>').join('');
+  if(available.some(user=>user.id===selectedId))$('taskForm').elements.ownerId.value=selectedId;
+  else if(available.length)$('taskForm').elements.ownerId.value=available[0].id;
 }
+function fillTaskParents(project,kind,selectedId){
+  const parentKinds={epic:[],task:['epic'],subtask:['task'],fix:['task','subtask']};
+  const list=tasks.filter(t=>t.project===project&&(parentKinds[kind]??[]).includes(t.kind));
+  $('taskForm').elements.parentId.innerHTML='<option value="">Без родительской задачи</option>'+list.map(t=>'<option value="'+escapeHtml(t.id)+'">'+escapeHtml((taskKindLabels[t.kind]??'')+' · '+t.title)+'</option>').join('');
+  $('taskForm').elements.parentId.value=list.some(t=>t.id===selectedId)?selectedId:'';
+}
+function renderCoExecutorChips(){
+  const project=$('taskForm').elements.project.value;
+  $('coExecutorChips').innerHTML=selectedCoExecutorIds.map(id=>users.find(u=>u.id===id)).filter(Boolean).map(u=>'<span class="task-chip">'+escapeHtml(u.name)+'<button type="button" data-remove-coexecutor="'+escapeHtml(u.id)+'" aria-label="Убрать '+escapeHtml(u.name)+'">×</button></span>').join('');
+  const ownerId=$('taskForm').elements.ownerId.value;for(const option of $('coExecutorSelect').options)option.disabled=option.value===ownerId||selectedCoExecutorIds.includes(option.value);
+}
+function renderTaskTags(project,selected=[]){
+  const selectedSet=new Set(selected),tags=projectTagList(project);
+  $('taskTagList').innerHTML=tags.map(tag=>'<label class="task-tag-choice"><input type="checkbox" name="taskTags" value="'+escapeHtml(tag.id)+'"'+(selectedSet.has(tag.id)?' checked':'')+' /><i style="--tag-color:'+escapeHtml(tag.color)+'"></i><span>'+escapeHtml(tag.name)+'</span></label>').join('')||empty('Метки проекта ещё не настроены.');
+}
+function localDateTime(value){if(!value)return '';const date=new Date(value);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function openTaskForm(id=null) {
   const original=id?tasks.find(t=>t.id===id):null;
-  if(id?!accessCanEditTask(original):!accessProjects().some(p=>accessCan('planning',p,'write'))){notify('Нет права изменять задачу.');return;}
-  editingTask=id; closeDrawer(); const form=$('taskForm');form.reset();
-  const task=id?tasks.find(item=>item.id===id):null;
-  form.elements.project.innerHTML=accessProjects().map(p=>'<option value="'+p+'">'+escapeHtml(planningProjects[p].code)+'</option>').join('');
-  form.elements.project.value=task?.project??(scope==='all'?accessProjects()[0]:scope);
-  form.elements.project.disabled=Boolean(task);
-  fillOwners(form.elements.project.value,task?.ownerId);
-  form.elements.title.value=task?.title??'';
-  form.elements.due.value=task?.due??'2026-10-20';
-  form.elements.plan.value=task?String(task.plan*1000):'';
-  form.elements.plan.readOnly=Boolean(task&&(!task.proposed||task.techRequestId));
-  form.elements.plan.closest('label').hidden=!accessCanFinance(form.elements.project.value);
-  if(!accessCanFinance(form.elements.project.value)){form.elements.plan.value='0';form.elements.plan.readOnly=true;}
-  form.elements.due.readOnly=Boolean(task&&!accessCanSetDeadline(task.project));
-  form.elements.reason.value=task?.reason??'';
-  $('taskDialogTitle').textContent=task?'Редактировать карточку':'Карточка в бэклог';
-  $('saveTask').textContent=task?'Сохранить изменения':'Добавить в бэклог';
-  $('taskBudgetNote').textContent=task?.techRequestId?'Оценка зафиксирована в запросе компонента. Ответственный, срок и обоснование обновятся и в связанном запросе.':task&&!task.proposed?'Бюджет утверждён. Здесь редактируются содержание, ответственный и прогнозный срок.':'Оценка карточки отображается в бюджетных заявках и ожидает утверждения.';
+  if(id?!accessCanManageTask(original):!accessProjects().some(p=>accessCan('planning',p,'write'))){notify('Редактировать задачу может её создатель или пользователь с переданным правом.');return;}
+  editingTask=id;closeDrawer();const form=$('taskForm');form.reset();
+  const task=id?tasks.find(item=>item.id===id):null,allowed=accessProjects().filter(p=>accessCan('planning',p,'write'));if(task&&accessCan('planning',task.project,'read')&&!allowed.includes(task.project))allowed.unshift(task.project);
+  form.elements.project.innerHTML=allowed.map(p=>'<option value="'+p+'">'+escapeHtml(planningProjects[p].code)+'</option>').join('');
+  form.elements.project.value=task?.project??(allowed.includes(scope)?scope:allowed[0]??'');form.elements.project.disabled=Boolean(task);
+  fillOwners(form.elements.project.value,task?.ownerId);form.elements.title.value=task?.title??'';form.elements.kind.value=task?.kind??'task';
+  form.elements.parentId.value='';fillTaskParents(form.elements.project.value,form.elements.kind.value,task?.parentId);
+  form.elements.startDate.value=task?.startDate??'';form.elements.due.value=task?.due??new Date().toISOString().slice(0,10);
+  form.elements.due.readOnly=Boolean(task&&!accessCanSetDeadline(task.project)&&!accessCanManageTask(task));
+  form.elements.taskType.value=task?.taskType??'one_off';form.elements.cadence.value=task?.cadence??'weekly';form.elements.activateDaysBefore.value=String(task?.activateDaysBefore??3);
+  form.elements.description.value=task?.description??task?.reason??'';selectedCoExecutorIds=[...(task?.coExecutorIds??[])];renderCoExecutorChips();
+  $('taskReminderRows').innerHTML=(task?.reminders?.length?task.reminders:['']).map(value=>'<div class="task-reminder-row"><input name="reminders" type="datetime-local" aria-label="Время напоминания" value="'+escapeHtml(localDateTime(value))+'" /><button class="icon-button remove-reminder" type="button" aria-label="Удалить напоминание">×</button></div>').join('');
+  renderTaskTags(form.elements.project.value,task?.tags??[]);
+  document.querySelectorAll('.recurring-option').forEach(el=>el.hidden=form.elements.taskType.value!=='recurring');
+  $('taskDialogTitle').textContent=task?'Редактировать задачу':'Новая задача';$('saveTask').textContent=task?'Сохранить':'Создать задачу';$('taskFormError').hidden=true;
+  $('taskFormNote').textContent=task?.taskType==='recurring'?'Завершение регулярной задачи создаст следующее выполнение по расписанию.':'Регулярная задача активируется на доске за заданное количество дней до срока.';
   $('taskDialog').showModal();form.elements.title.focus();
 }
-function saveTask(event) {
-  event.preventDefault();const form=$('taskForm');
-  if(!form.reportValidity())return;
+async function saveTask(event) {
+  event.preventDefault();const form=$('taskForm');if(!form.reportValidity())return;
   const existing=editingTask?tasks.find(t=>t.id===editingTask):null,project=existing?.project??form.elements.project.value;
-  if(existing?!accessCanEditTask(existing):!accessCan('planning',project,'write')){notify('Полномочия на задачу отозваны.');return;}
-  const title=form.elements.title.value.trim();if(!title){form.elements.title.focus();return;}
-  const ownerId=form.elements.owner.value,owner=users.find(user=>user.id===ownerId);
-  if(!owner||owner.status!=='active'||!['leader','head'].includes(accessActor()?.role)&&!owner.projects.includes(project)){notify('Назначьте активного пользователя в пределах доступного круга.');return;}
-  const plan=accessCanFinance(project)?Number(form.elements.plan.value)/1000:existing?.plan??0;
-  if(!Number.isFinite(plan)||plan<0||plan>100000){notify('Некорректная оценка бюджета.');return;}
-  if(editingTask) {
-    const task=tasks.find(item=>item.id===editingTask);
-    const due=accessCanSetDeadline(task.project)?form.elements.due.value:task.due;
-    Object.assign(task,{title,ownerId,owner:owner.name,due,forecast:displayDate(due),reason:form.elements.reason.value.trim()});
-    if(task.proposed&&!task.techRequestId)task.plan=task.eac=plan;
-    if(task.techRequestId){const request=techRequests.find(r=>r.id===task.techRequestId);if(request){request.ownerId=task.ownerId;request.due=task.due;request.reason=task.reason;const component=techComponents.find(c=>c.id===task.componentId);if(component)addTechEvent(component,'request-edit',request.code+' · обновление карточки',task.reason,request.document,{requestId:request.id});}}
-  } else {
-    const project=form.elements.project.value;
-    tasks.push({id:uid('task'),project,stage:'backlog',code:'WP-'+String(tasks.length+1).padStart(3,'0'),title,ownerId,owner:owner.name,baseline:displayDate(form.elements.due.value),forecast:displayDate(form.elements.due.value),due:form.elements.due.value,plan,actual:0,commitments:0,eac:plan,health:'ok',healthText:'Новая задача',reason:form.elements.reason.value.trim()||'Пакет работ ожидает уточнения.',links:[],proposed:true,createdBy:accessActor().id,departmentId:accessActor().departmentId,awaitingAccess:!accessProjects(owner).includes(project)});
-  }
-  const edited=Boolean(editingTask);persist();$('taskDialog').close();$('taskSearch').value='';render();notify(edited?'Изменения карточки сохранены.':'Карточка добавлена в бэклог. Бюджетная заявка отражена в разделе «Бюджет».');
+  if(existing?!accessCanManageTask(existing):!accessCan('planning',project,'write')){notify('Полномочия на задачу отозваны.');return;}
+  const ownerId=form.elements.ownerId.value,owner=users.find(user=>user.id===ownerId);if(!owner||owner.status!=='active'||!accessProjects(owner).includes(project)){notify('Ответственный должен иметь активный доступ к проекту.');return;}
+  const reminders=[...form.querySelectorAll('[name="reminders"]')].map(input=>input.value).filter(Boolean).map(value=>new Date(value).toISOString());
+  const tags=[...form.querySelectorAll('[name="taskTags"]:checked')].map(input=>input.value);
+  const payload={operation:existing?'update':'create',id:existing?.id,project,title:form.elements.title.value.trim(),kind:form.elements.kind.value,parentId:form.elements.parentId.value||null,ownerId,coExecutorIds:selectedCoExecutorIds.filter(id=>id!==ownerId),startDate:form.elements.startDate.value,due:form.elements.due.value,taskType:form.elements.taskType.value,cadence:form.elements.cadence.value,activateDaysBefore:Number(form.elements.activateDaysBefore.value),reminders,tags,description:form.elements.description.value.trim(),stage:existing?.stage};
+  const button=$('saveTask');button.disabled=true;$('taskFormError').hidden=true;
+  try{
+    if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate(payload);applyPlanningState(result.planning);}
+    else if(existing)Object.assign(existing,payload,{reason:payload.description});
+    else{
+      const department=accessState.departments.find(d=>d.id===accessActor()?.departmentId),autoTag=projectTagList(project).find(t=>t.kind==='department'&&t.departmentId===department?.id);
+      const task={...payload,id:uid('task'),code:'TASK-'+String(tasks.length+1).padStart(3,'0'),stage:'backlog',plan:0,actual:0,commitments:0,eac:0,owner:owner.name,createdBy:accessActor().id,departmentId:accessActor().departmentId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};if(autoTag&&!task.tags.includes(autoTag.id))task.tags.push(autoTag.id);tasks.push(task);
+    }
+    const edited=Boolean(existing);persist();$('taskDialog').close();$('taskSearch').value='';render();notify(edited?'Изменения задачи сохранены.':'Задача создана в бэклоге.');
+  }catch(error){$('taskFormError').textContent=error.message;$('taskFormError').hidden=false;}
+  finally{button.disabled=false;}
 }
-function moveTask(id,stage) {
+async function saveTaskDeadline(id){
+  const task=tasks.find(item=>item.id===id),due=$('taskDeadline')?.value??'',reason=$('taskDeadlineReason')?.value.trim()??'';
+  if(!task||!accessCanSetDeadline(task.project)){notify('Нет права менять срок этой задачи.');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(due)||task.startDate&&task.startDate>due||!reason||reason.length>500){notify('Проверьте срок и укажите основание изменения (до 500 символов).');return;}
+  try{
+    if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate({operation:'deadline',id,due,reason});applyPlanningState(result.planning);}
+    else{task.due=due;task.forecast=due;task.updatedAt=new Date().toISOString();}
+    persist();render();openTask(id);notify('Срок задачи изменён. Основание записано в журнал.');
+  }catch(error){notify(error.message);}
+}
+async function moveTask(id,stage) {
   const task=tasks.find(item=>item.id===id);if(!task||!stages.some(item=>item.id===stage)||task.stage===stage)return;
-  if(!accessCanEditTask(task)){notify('Нет права менять эту карточку.');return;}
-  const from=task.stage;task.stage=stage;
-  taskEvents.push({taskId:id,from,to:stage,at:new Date().toISOString()});taskEvents=taskEvents.slice(-100);
-  persist();render();notify('«'+task.title+'» → '+stages.find(item=>item.id===stage).label);
-  if(selectedTask===id&&$('detailDrawer').classList.contains('open'))openTask(id);
+  if(!accessCanMoveTask(task)){notify('Нет права менять статус этой задачи.');return;}
+  try{
+    if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate({operation:'move',id,stage});applyPlanningState(result.planning);}
+    else{const from=task.stage;task.stage=stage;taskEvents.push({taskId:id,from,to:stage,at:new Date().toISOString()});taskEvents=taskEvents.slice(-100);if(stage==='closed'&&task.taskType==='recurring'){const next={...structuredClone(task),id:uid('task'),code:'TASK-'+String(tasks.length+1).padStart(3,'0'),stage:'backlog',due:nextRecurringDue(task.due,task.cadence),reminders:[],createdAt:new Date().toISOString()};tasks.push(next);}}
+    persist();render();notify('«'+task.title+'» → '+stages.find(item=>item.id===stage).label);if(selectedTask===id&&$('detailDrawer').classList.contains('open'))openTask(id);
+  }catch(error){notify(error.message);}
 }
+function nextRecurringDue(due,cadence){const value=new Date(due+'T12:00:00Z');if(cadence==='monthly')value.setUTCMonth(value.getUTCMonth()+1);else value.setUTCDate(value.getUTCDate()+7);return value.toISOString().slice(0,10);}
 
 function openDrawer(kicker,title,body) {
   if(!$('detailDrawer').classList.contains('open'))drawerReturnFocus=document.activeElement;
   $('drawerKicker').textContent=kicker;$('drawerTitle').textContent=title;$('drawerBody').innerHTML=body;
   $('drawerBody').querySelectorAll('[data-tech-result]').forEach(el=>{const r=techRequests.find(x=>x.id===el.dataset.techResult);el.hidden=!r||!accessCan('testing',r.project,'verify');});
-  if(selectedTask&&!accessCanEditTask(tasks.find(t=>t.id===selectedTask))){$('drawerBody').querySelectorAll('[data-edit-task],#taskStage').forEach(el=>el.hidden=true);}
+  const task=selectedTask&&tasks.find(t=>t.id===selectedTask);
+  if(task){if(!accessCanMoveTask(task))$('drawerBody').querySelectorAll('#taskStage').forEach(el=>el.hidden=true);if(!accessCanManageTask(task))$('drawerBody').querySelectorAll('[data-edit-task],[data-delete-task]').forEach(el=>el.hidden=true);if(!accessCanShareTask(task))$('drawerBody').querySelectorAll('[data-share-task]').forEach(el=>el.hidden=true);}
   $('detailDrawer').inert=false;$('detailDrawer').classList.add('open');$('detailDrawer').setAttribute('aria-hidden','false');$('closeDrawer').focus();
 }
 function closeDrawer() {
@@ -350,10 +401,44 @@ function detailRows(rows) { return '<div class="detail-grid">'+rows.map(([label,
 function openTask(id) {
   const task=tasks.find(item=>item.id===id);if(!task)return;selectedTask=id;
   if(!accessTaskVisible(task)){notify('Нет допуска к этой карточке.');return;}
-  if(!accessCanFinance(task.project)){accessOpenTask(task);return;}
-  const lastEvents=taskEvents.filter(item=>item.taskId===id).slice(-3).reverse();
-  const body=badge(task.proposed?'Бюджетная заявка':'Утверждённый пакет',task.proposed?'warning':'neutral')+detailRows([['Проект',planningProjects[task.project].code],['Ответственный',taskOwner(task)],['Базовый срок',task.baseline],['Прогнозный срок',task.forecast],['План',money(task.plan)],['Факт / обязательства',money(task.actual)+' / '+money(task.commitments)],['EAC',money(task.eac)],['Связанные документы',task.links?.join(' · ')||'Документы ещё не приложены']])+'<div class="drawer-note">'+escapeHtml(task.reason)+'</div><label class="control"><span>Статус карточки</span><select id="taskStage">'+stages.map(stage=>'<option value="'+stage.id+'" '+(stage.id===task.stage?'selected':'')+'>'+stage.label+'</option>').join('')+'</select></label><div class="drawer-actions"><button class="btn primary" data-edit-task="'+escapeHtml(task.id)+'" type="button">Редактировать</button></div>'+(lastEvents.length?'<div style="margin-top:24px"><span class="eyebrow">ИСТОРИЯ ПЕРЕМЕЩЕНИЙ</span>'+lastEvents.map(item=>'<div class="list-row"><h3>'+stages.find(stage=>stage.id===item.from)?.label+' → '+stages.find(stage=>stage.id===item.to)?.label+'</h3><p>'+new Date(item.at).toLocaleString('ru-RU')+'</p></div>').join('')+'</div>':'');
-  openDrawer('КАРТОЧКА / '+task.code,task.title,body+(task.techRequestId?'<div class="drawer-actions"><button class="btn" data-tech-request="'+escapeHtml(task.techRequestId)+'" type="button">Связанный запрос ↗</button></div><p class="form-note" style="margin-top:16px">Перемещение карточки не подтверждает испытание, приёмку или оплату. Результат верификации фиксируется в связанном запросе.</p>':''));
+  const lastEvents=taskEvents.filter(item=>item.taskId===id).slice(-5).reverse(),parent=task.parentId?tasks.find(t=>t.id===task.parentId):null,coExecutors=(task.coExecutorIds??[]).map(uid=>users.find(u=>u.id===uid)?.name).filter(Boolean);
+  const creator=users.find(u=>u.id===task.createdBy)?.name??'Пользователь системы',manage=accessCanManageTask(task),share=accessCanShareTask(task),canMove=accessCanMoveTask(task),canSetDeadline=accessCanSetDeadline(task.project);
+  const actions=manage?'<div class="task-owner-actions"><button class="btn primary" data-edit-task="'+escapeHtml(task.id)+'" type="button">Редактировать</button><button class="btn danger" data-delete-task="'+escapeHtml(task.id)+'" type="button">Удалить</button>'+(share?'<button class="icon-button task-share-button" data-share-task="'+escapeHtml(task.id)+'" type="button" aria-label="Поделиться правами" title="Поделиться правами"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/></svg></button>':'')+'</div>':'';
+  const deadlineEditor=canSetDeadline&&!manage?'<section class="deadline-editor"><label class="control"><span>Новый срок</span><input id="taskDeadline" type="date" min="'+escapeHtml(task.startDate??'')+'" value="'+escapeHtml(task.due)+'" required /></label><label class="control"><span>Основание изменения</span><input id="taskDeadlineReason" maxlength="500" placeholder="Почему изменяется срок" required /></label><button class="btn" data-save-deadline="'+escapeHtml(task.id)+'" type="button">Сохранить срок</button></section>':'';
+  const body=detailRows([['Проект',planningProjects[task.project].code],['Тип',taskKindLabels[task.kind]??'Задача'],['Родитель',parent?.title??'—'],['Создал',creator],['Ответственный',taskOwner(task)],['Соисполнители',coExecutors.join(', ')||'—'],['Начало / срок',(task.startDate?displayDate(task.startDate)+' / ':'')+displayDate(task.due)],['Повторение',task.taskType==='recurring'?(task.cadence==='monthly'?'Ежемесячно':'Еженедельно'):'Разовая'],['Напоминания',(task.reminders??[]).map(at=>new Date(at).toLocaleString('ru-RU')).join(' · ')||'Нет']])+'<div class="task-tags">'+taskTagMarkup(task,20)+'</div>'+(task.description||task.reason?'<div class="drawer-note">'+escapeHtml(task.description||task.reason)+'</div>':'')+(canMove?'<label class="control"><span>Статус</span><select id="taskStage">'+stages.map(stage=>'<option value="'+stage.id+'" '+(stage.id===task.stage?'selected':'')+'>'+stage.label+'</option>').join('')+'</select></label>':'')+deadlineEditor+actions+(lastEvents.length?'<div style="margin-top:24px"><span class="eyebrow">ИСТОРИЯ</span>'+lastEvents.map(item=>'<div class="list-row"><h3>'+stages.find(stage=>stage.id===item.from)?.label+' → '+stages.find(stage=>stage.id===item.to)?.label+'</h3><p>'+new Date(item.at).toLocaleString('ru-RU')+(item.system?' · автоматически':'')+'</p></div>').join('')+'</div>':'');
+  openDrawer('ЗАДАЧА / '+task.code,task.title,body);
+}
+function eligibleTaskEditors(task){return users.filter(user=>user.status==='active'&&user.role!=='admin'&&user.id!==task.createdBy&&user.projects?.includes(task.project)&&accessCan('planning',task.project,'read',user));}
+function renderTaskSharePicker(){
+  const task=tasks.find(item=>item.id===sharingTaskId);if(!task)return;
+  const eligible=eligibleTaskEditors(task),query=$('taskShareSearch').value.trim().toLocaleLowerCase('ru'),selected=new Set(selectedShareEditorIds);
+  $('taskShareChips').innerHTML=selectedShareEditorIds.map(id=>{const user=users.find(item=>item.id===id);return '<span class="task-chip">'+escapeHtml(user?.name??'Пользователь удалён')+'<button type="button" data-remove-share-user="'+escapeHtml(id)+'" aria-label="Отозвать право у '+escapeHtml(user?.name??'пользователя')+'">×</button></span>';}).join('')||'<span class="muted">Права ещё никому не переданы</span>';
+  const matches=eligible.filter(user=>!selected.has(user.id)&&(user.name+' '+user.email+' '+(user.position??'')).toLocaleLowerCase('ru').includes(query)).slice(0,12);
+  $('taskShareResults').innerHTML=matches.map(user=>'<button class="task-share-result" type="button" role="option" data-add-share-user="'+escapeHtml(user.id)+'"><strong>'+escapeHtml(user.name)+'</strong><small>'+escapeHtml(user.email)+' · '+escapeHtml(user.position??accessRoleLabel(user))+'</small></button>').join('')||'<div class="task-share-empty">'+(query?'Совпадений не найдено':'Нет других активных пользователей с доступом к проекту')+'</div>';
+}
+function openTaskShare(id){
+  const task=tasks.find(item=>item.id===id);if(!task||!accessCanShareTask(task)){notify('Передать права может только создатель задачи.');return;}
+  sharingTaskId=id;selectedShareEditorIds=[...(task.editorIds??[])];$('taskShareSearch').value='';$('taskShareTitle').textContent='Поделиться правами · '+task.title;$('taskShareError').hidden=true;renderTaskSharePicker();$('taskShareDialog').showModal();$('taskShareSearch').focus();
+}
+async function saveTaskShare(event){
+  event.preventDefault();const task=tasks.find(item=>item.id===sharingTaskId);if(!task||!accessCanShareTask(task)){notify('Передать права может только создатель задачи.');return;}
+  const button=$('taskShareSave');button.disabled=true;$('taskShareError').hidden=true;
+  try{
+    if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate({operation:'share',id:task.id,editorIds:selectedShareEditorIds});applyPlanningState(result.planning);}
+    else task.editorIds=[...selectedShareEditorIds];
+    persist();$('taskShareDialog').close();render();if(selectedTask===task.id&&$('detailDrawer').classList.contains('open'))openTask(task.id);notify('Права доступа к задаче обновлены.');
+  }catch(error){$('taskShareError').textContent=error.message;$('taskShareError').hidden=false;}
+  finally{button.disabled=false;}
+}
+async function deleteTask(id){
+  const task=tasks.find(item=>item.id===id);if(!task||!accessCanManageTask(task)){notify('Удалить задачу может только создатель или пользователь с переданным правом.');return;}
+  if(tasks.some(item=>item.parentId===id)){notify('Сначала удалите или перепривяжите дочерние задачи.');return;}
+  if(!window.confirm('Удалить задачу «'+task.title+'»? Это действие нельзя отменить.'))return;
+  try{
+    if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate({operation:'delete',id});applyPlanningState(result.planning);}
+    else{tasks=tasks.filter(item=>item.id!==id);taskEvents=taskEvents.filter(item=>item.taskId!==id);}
+    closeDrawer();persist();render();notify('Задача удалена.');
+  }catch(error){notify(error.message);}
 }
 function openPurchase(id) {
   const purchase=purchases.find(item=>item.id===id);if(!purchase)return;
@@ -425,13 +510,53 @@ function exportReport(format) {
   downloadReport(data,format,name);reportHistory.unshift({id,name,format,snapshot:data,createdAt:data.capturedAt});reportHistory=reportHistory.slice(0,25);persist();renderReports();notify('Отчёт сформирован и сохранён в истории.');
 }
 function openReportDialog() { if(!accessActive()||accessActor().role!=='leader'){notify('Нет права выгрузки отчёта.');return;}$('reportContext').textContent=scopeName()+' · '+period.toUpperCase()+' · '+tasks.filter(inScope).length+' пакетов работ';$('reportDialog').showModal(); }
+function renderProjectTagRows(project){
+  $('projectTagRows').innerHTML=projectTagList(project).map(tag=>'<label class="project-tag-row"><span class="task-tag"><i style="--tag-color:'+escapeHtml(tag.color)+'"></i>'+escapeHtml(tag.name)+'</span><small>'+escapeHtml(tag.kind==='department'?'Автотег отдела':tag.kind==='user'?'Пользователь':'Метка проекта')+'</small><input type="color" value="'+escapeHtml(tag.color)+'" data-tag-color="'+escapeHtml(tag.id)+'" data-tag-project="'+escapeHtml(project)+'" aria-label="Цвет метки '+escapeHtml(tag.name)+'"'+(tag.kind==='department'?' disabled':'')+' /></label>').join('')||empty('Метки проекта ещё не настроены.');
+}
+function openTaskTags(){
+  const allowed=accessScopeProjects().filter(p=>accessCan('planning',p,'write'));if(!allowed.length){notify('Нет права настраивать метки.');return;}
+  $('tagProjectSelect').innerHTML=allowed.map(p=>'<option value="'+p+'">'+escapeHtml(planningProjects[p].code+' · '+planningProjects[p].name)+'</option>').join('');
+  $('tagProjectSelect').value=allowed.includes(scope)?scope:allowed[0];renderProjectTagRows($('tagProjectSelect').value);$('taskTagsError').hidden=true;$('taskTagsDialog').showModal();
+}
+async function updateProjectTag(project,tagId,color){
+  try{
+    let planning;
+    if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate({operation:'tag-color',project,tagId,color});planning=result.planning;}
+    else{const tag=projectTagList(project).find(t=>t.id===tagId);if(tag)tag.color=color;planning={tasks,taskEvents,projectTags};}
+    applyPlanningState(planning);renderProjectTagRows(project);if($('taskDialog').open&&$('taskForm').elements.project.value===project)renderTaskTags(project,[...$('taskForm').querySelectorAll('[name="taskTags"]:checked')].map(x=>x.value));
+  }catch(error){$('taskTagsError').textContent=error.message;$('taskTagsError').hidden=false;}
+}
+async function createProjectTag(event){
+  event.preventDefault();const form=event.target;if(!form.reportValidity())return;const project=$('tagProjectSelect').value,name=form.elements.name.value.trim(),color=form.elements.color.value;
+  try{
+    let planning;if(globalThis.epsilonPlanning){const result=await globalThis.epsilonPlanning.mutate({operation:'tag-create',project,name,color});planning=result.planning;}
+    else{projectTagList(project).push({id:uid('tag'),kind:'custom',name,color});planning={tasks,taskEvents,projectTags};}
+    applyPlanningState(planning);form.reset();form.elements.color.value='#63a7ff';renderProjectTagRows(project);notify('Метка добавлена в список этого проекта.');
+  }catch(error){$('taskTagsError').textContent=error.message;$('taskTagsError').hidden=false;}
+}
+async function pollTaskNotifications(){
+  try{
+    let items=[];
+    if(globalThis.epsilonPlanning)items=(await globalThis.epsilonPlanning.notifications()).items??[];
+    else{
+      const now=Date.now();for(const task of tasks){if(task.taskType==='recurring'&&task.stage==='backlog'&&Date.parse(task.due+'T09:00:00Z')-Number(task.activateDaysBefore??3)*86400000<=now){task.stage='work';taskEvents.push({taskId:task.id,from:'backlog',to:'work',at:new Date(now).toISOString(),system:true});}
+        for(const at of task.reminders??[]){if(Date.parse(at)>now)continue;const key=task.id+'|'+at+'|'+(task.ownerId??task.createdBy);if(taskReminderLog.includes(key))continue;taskReminderLog.push(key);items.push({taskId:task.id,title:task.title,project:task.project,due:task.due,at});}
+      }taskReminderLog=taskReminderLog.slice(-1000);persist();
+    }
+    for(const item of items){const message='Напоминание: '+item.title+' · срок '+displayDate(item.due);if('Notification'in window&&Notification.permission==='granted'){const note=new Notification('ЭПСИЛОН · задача',{body:message,tag:'epsilon-task-'+item.taskId});note.onclick=()=>{window.focus();selectProject(item.project);navigate('planning');note.close();};}else notify(message);}
+  }
+  catch{/* Notification polling must not interrupt the board. */}
+}
 
 document.addEventListener('click',event=>{
   const route=event.target.closest('[data-route]');if(route&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey){event.preventDefault();navigate(route.dataset.route);return;}
   const close=event.target.closest('[data-close]');if(close){$(close.dataset.close).close();return;}
+  const deadline=event.target.closest('[data-save-deadline]');if(deadline){saveTaskDeadline(deadline.dataset.saveDeadline);return;}
   const project=event.target.closest('[data-project]');if(project){selectProject(project.dataset.project);return;}
   const add=event.target.closest('[data-add-task]');if(add){openTaskForm();return;}
   const edit=event.target.closest('[data-edit-task]');if(edit){openTaskForm(edit.dataset.editTask);return;}
+  const share=event.target.closest('[data-share-task]');if(share){openTaskShare(share.dataset.shareTask);return;}
+  const remove=event.target.closest('[data-delete-task]');if(remove){deleteTask(remove.dataset.deleteTask);return;}
   const task=event.target.closest('[data-task]');if(task&&!dragId){openTask(task.dataset.task);return;}
   const purchase=event.target.closest('[data-purchase]');if(purchase){openPurchase(purchase.dataset.purchase);return;}
   const user=event.target.closest('[data-user]');if(user){openUserForm(user.dataset.user);return;}
@@ -445,9 +570,19 @@ document.addEventListener('keydown',event=>{
 $('projectSelect').addEventListener('change',event=>selectProject(event.target.value));
 $('periodSelect').addEventListener('change',event=>{period=event.target.value;persist();render();navigate(currentRoute,{replace:true});});
 $('taskSearch').addEventListener('input',renderPlanning);$('userSearch').addEventListener('input',renderUsers);$('purchaseFilter').addEventListener('change',renderPurchases);
-$('addTask').addEventListener('click',()=>openTaskForm());$('taskForm').addEventListener('submit',saveTask);$('taskForm').elements.project.addEventListener('change',event=>fillOwners(event.target.value));
+$('addTask').addEventListener('click',()=>openTaskForm());$('taskForm').addEventListener('submit',saveTask);$('taskForm').elements.project.addEventListener('change',event=>{fillOwners(event.target.value);fillTaskParents(event.target.value,$('taskForm').elements.kind.value);renderTaskTags(event.target.value);});
+$('taskShareForm').addEventListener('submit',saveTaskShare);$('taskShareSearch').addEventListener('input',renderTaskSharePicker);$('taskShareResults').addEventListener('click',event=>{const option=event.target.closest('[data-add-share-user]');if(!option)return;const id=option.dataset.addShareUser;if(!selectedShareEditorIds.includes(id))selectedShareEditorIds.push(id);renderTaskSharePicker();$('taskShareSearch').focus();});$('taskShareChips').addEventListener('click',event=>{const remove=event.target.closest('[data-remove-share-user]');if(!remove)return;selectedShareEditorIds=selectedShareEditorIds.filter(id=>id!==remove.dataset.removeShareUser);renderTaskSharePicker();});
+$('taskForm').elements.kind.addEventListener('change',event=>fillTaskParents($('taskForm').elements.project.value,event.target.value));$('taskForm').elements.ownerId.addEventListener('change',renderCoExecutorChips);
+$('taskForm').elements.taskType.addEventListener('change',event=>document.querySelectorAll('.recurring-option').forEach(el=>el.hidden=event.target.value!=='recurring'));
+$('addCoExecutor').addEventListener('click',()=>{const id=$('coExecutorSelect').value;if(id&&!selectedCoExecutorIds.includes(id)&&id!==$('taskForm').elements.ownerId.value)selectedCoExecutorIds.push(id);renderCoExecutorChips();$('coExecutorSelect').value='';});
+$('coExecutorChips').addEventListener('click',event=>{const remove=event.target.closest('[data-remove-coexecutor]');if(remove){selectedCoExecutorIds=selectedCoExecutorIds.filter(id=>id!==remove.dataset.removeCoexecutor);renderCoExecutorChips();}});
+$('addTaskReminder').addEventListener('click',()=>{const row=document.createElement('div');row.className='task-reminder-row';row.innerHTML='<input name="reminders" type="datetime-local" aria-label="Время напоминания" /><button class="icon-button remove-reminder" type="button" aria-label="Удалить напоминание">×</button>';$('taskReminderRows').append(row);row.querySelector('input').focus();});
+$('taskReminderRows').addEventListener('click',event=>{const remove=event.target.closest('.remove-reminder');if(!remove)return;const rows=$('taskReminderRows').querySelectorAll('.task-reminder-row');if(rows.length===1)rows[0].querySelector('input').value='';else remove.closest('.task-reminder-row').remove();});
+$('manageTaskTags').addEventListener('click',openTaskTags);$('tagProjectSelect').addEventListener('change',event=>renderProjectTagRows(event.target.value));$('newProjectTagForm').addEventListener('submit',createProjectTag);
+$('projectTagRows').addEventListener('change',event=>{const input=event.target.closest('[data-tag-color]');if(input)updateProjectTag(input.dataset.tagProject,input.dataset.tagColor,input.value);});
+$('enableTaskNotifications').addEventListener('click',async()=>{if(!('Notification'in window)){notify('Браузер не поддерживает системные уведомления.');return;}try{const permission=await Notification.requestPermission();notify(permission==='granted'?'Уведомления включены в этом браузере.':'Разрешение на уведомления не выдано.');}catch{notify('Не удалось включить системные уведомления.');}});
+pollTaskNotifications();window.setInterval(pollTaskNotifications,60000);
 $('addUser').addEventListener('click',()=>openUserForm());$('userForm').addEventListener('submit',saveUser);
-setupTechnology();
 setupProduction();
 setupAccess();
 $('currentUserButton').addEventListener('click',()=>openUserForm(accessActor()?.id));

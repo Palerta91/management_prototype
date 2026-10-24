@@ -6,7 +6,7 @@ const elements=new Map();let stored=null;
 const get=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:true,innerHTML:'',textContent:'',close(){},focus(){}});return elements.get(id);};
 const ctx=vm.createContext({structuredClone,console,URL,Blob,setTimeout:()=>0,clearTimeout(){},localStorage:{getItem:()=>stored,setItem:(_k,v)=>{stored=v;}},document:{getElementById:get,body:{append(){}},createElement:()=>({click(){},remove(){}})}});
 const source=file=>readFileSync(new URL('../dist/assets/'+file,import.meta.url),'utf8');
-for(const file of ['seed.js','technology.js','production.js','access.js'])vm.runInContext(source(file),ctx,{filename:file});
+for(const file of ['seed.js','technology.js','production.js','organization.js','access.js'])vm.runInContext(source(file),ctx,{filename:file});
 vm.runInContext(source('app.js').split("document.addEventListener('click',event=>")[0],ctx);
 const run=code=>vm.runInContext(code,ctx);run('render=()=>{};notify=()=>{};renderAccessPortal=()=>{};');ctx.event={preventDefault(){}};
 function form(id,values,checked={}){
@@ -14,7 +14,7 @@ function form(id,values,checked={}){
 }
 const actor=id=>run(`accessState.actorId=${JSON.stringify(id)};`);
 const check=code=>run(code);
-assert.deepEqual([...run('Object.keys(roles)')],['admin','leader','head','project_manager','employee']);
+assert.deepEqual([...run('Object.keys(roles)')],['admin','leader','head','project_manager','employee','unassigned']);
 assert.equal(check("users.find(u=>u.id==='team-3').position"),'Специалист по закупкам');
 assert.equal(check("users.find(u=>u.id==='team-3').role"),'employee');
 // Administrative authority is not authority to read business data or chats.
@@ -40,7 +40,7 @@ assert.equal(check("accessCan('quality','aurora')"),false);
 assert.equal(check("accessCanChangeRole(users.find(u=>u.id==='employee-production'),'head')"),false);
 assert.equal(check("accessCanManageUser(users.find(u=>u.id==='team-0'))"),false);
 assert.equal(check("accessCanManageUser(users.find(u=>u.id==='employee-production'))"),true);
-assert.equal(check("accessCanEditTask(tasks.find(t=>t.project==='aurora'))"),true);
+assert.equal(check("accessCanEditTask(tasks.find(t=>t.project==='aurora'))"),false,'Department role does not override task ownership; only its creator or delegated editors may edit');
 // Employee: no aggregate analytics, no admin, no cross-project or cross-department write.
 actor('employee-production');assert.equal(check('accessCanAdmin()'),false);
 assert.equal(check("accessCan('production','aurora','write')"),true);assert.equal(check("accessCan('production','aurora','verify')"),false);
@@ -77,22 +77,21 @@ actor('head-production');form('accessProjectForm',projectFields);run('saveAccess
 actor('director');run('saveAccessProject(event);');assert.equal(run('projectIds.length'),4);const projectId=run("projectIds.find(id=>planningProjects[id].code==='TEST-01')");
 assert.equal(run(`planningProjects[${JSON.stringify(projectId)}].base`),2500);assert.equal(run(`planningProjects[${JSON.stringify(projectId)}].actual`),0);assert.equal(run(`planningProjects[${JSON.stringify(projectId)}].eac`),0);
 actor('admin');assert.equal(run(`accessCan('production',${JSON.stringify(projectId)})`),false);
-actor('director');form('departmentForm',{name:'Новый отдел'},{projects:[projectId],sections:['technology']});run('saveAccessDepartment(event);');assert.ok(run("accessState.departments.some(d=>d.name==='Новый отдел')"));
+actor('director');form('departmentForm',{name:'Новый отдел',parentId:'',reason:'Запуск нового направления'},{projects:[projectId],sections:['technology']});run('saveAccessDepartment(event);');assert.ok(run("accessState.departments.some(d=>d.name==='Новый отдел')"));
 actor('head-production');form('classificationForm',{departmentId:'quality',name:'Чужой справочник',kind:'entity'});run('saveAccessClassification(event);');assert.equal(run('accessState.classifications.length'),0);
 form('classificationForm',{departmentId:'production',name:'Тип сборочного дефекта',kind:'classification'});run('saveAccessClassification(event);');assert.equal(run('accessState.classifications.length'),1);
 // Save-time gates are rechecked even when a dialog was opened under an older role.
 actor('admin');const before=run('techComponents[0].revision');form('componentForm',{});run("editingComponent=techComponents[0].id;saveComponent(event);");assert.equal(run('techComponents[0].revision'),before);
 const beforeRunCount=run('productionData.runs.length');form('productionRunForm',{project:'aurora'});run('saveProductionRun(event);');assert.equal(run('productionData.runs.length'),beforeRunCount);
-// Heads can change any admitted task deadline, including another department's task.
+// Heads may change any admitted deadline, but that does not grant general edit rights.
 actor('head-production');const taskId=run("tasks.find(t=>t.project==='aurora'&&!t.techRequestId).id");
-form('taskForm',{title:'Согласованный срок задачи',project:'aurora',owner:'team-0',plan:0,due:'2027-01-15',reason:'Изменение контрольного срока'});
-run(`editingTask=${JSON.stringify(taskId)};saveTask(event);`);assert.equal(run(`tasks.find(t=>t.id===${JSON.stringify(taskId)}).due`),'2027-01-15');
-// A task assigned to someone outside the project does not silently grant project access.
-form('taskForm',{title:'Согласование со смежным отделом',project:'aurora',owner:'team-5',plan:0,due:'2026-11-01',reason:'Нужен допуск к проекту'});run('editingTask=null;saveTask(event);');
-assert.equal(run('tasks.at(-1).awaitingAccess'),true);assert.equal(run("users.find(u=>u.id==='team-5').projects.includes('aurora')"),false);
-actor('employee-production');form('taskForm',{title:'Проверить сборочную операцию',project:'aurora',owner:'employee-production',plan:999999,due:'2026-10-30',reason:'Рабочая задача'});run('editingTask=null;saveTask(event);');
+assert.equal(check("accessCanSetDeadline('aurora')"),true);assert.equal(check(`accessCanEditTask(tasks.find(t=>t.id===${JSON.stringify(taskId)}))`),false);
+// A task assigned to someone outside the project is rejected; assignment never grants access.
+const beforeUnadmittedAssignment=run('tasks.length');form('taskForm',{title:'Согласование со смежным отделом',project:'aurora',ownerId:'team-5',kind:'task',parentId:'',startDate:'',due:'2026-11-01',taskType:'one_off',cadence:'weekly',activateDaysBefore:3,description:'Нужен допуск к проекту'});run('editingTask=null;saveTask(event);');
+assert.equal(run('tasks.length'),beforeUnadmittedAssignment);assert.equal(run("users.find(u=>u.id==='team-5').projects.includes('aurora')"),false);
+actor('employee-production');form('taskForm',{title:'Проверить сборочную операцию',project:'aurora',ownerId:'employee-production',kind:'task',parentId:'',startDate:'',due:'2026-10-30',taskType:'one_off',cadence:'weekly',activateDaysBefore:3,description:'Рабочая задача'});run('editingTask=null;saveTask(event);');
 const ownTaskId=run('tasks.at(-1).id');assert.equal(run('tasks.at(-1).plan'),0);
-form('taskForm',{title:'Проверить сборочную операцию',project:'aurora',owner:'employee-production',plan:999999,due:'2030-12-31',reason:'Попытка изменить срок'});run(`editingTask=${JSON.stringify(ownTaskId)};saveTask(event);`);assert.equal(run(`tasks.find(t=>t.id===${JSON.stringify(ownTaskId)}).due`),'2026-10-30');
+form('taskForm',{title:'Проверить сборочную операцию',project:'aurora',ownerId:'employee-production',kind:'task',parentId:'',startDate:'',due:'2030-12-31',taskType:'one_off',cadence:'weekly',activateDaysBefore:3,description:'Скорректированный срок'});run(`editingTask=${JSON.stringify(ownTaskId)};saveTask(event);`);assert.equal(run(`tasks.find(t=>t.id===${JSON.stringify(ownTaskId)}).due`),'2030-12-31');
 // Non-director exports are rejected before any blob or hidden snapshot is exposed.
 ctx.URL={createObjectURL:()=>{throw new Error('Forbidden export attempted');},revokeObjectURL(){}};
 actor('admin');run("downloadReport({},'json','forbidden');downloadProductionReport({},'json','forbidden');");
@@ -125,7 +124,7 @@ actor('director');assert.equal(run('accessSuper()'),true);assert.equal(run("acce
 for(const id of ['admin','leader-operations','employee-production'])assert.equal(run(`accessCanUserAction(${user(id)},'delete')`),true);
 form('accessBlockForm',{userId:created.id,action:'delete',reason:'Удаление тестовой учётной записи'});run('saveAccessBlock(event);');assert.equal(run(`${user(created.id)}.status`),'deleted');assert.equal(run(`validUser(${user(created.id)})`),true);actor(created.id);assert.equal(run('accessActive()'),false);
 // Project manager permissions are explicit per project, not inherited from the department.
-actor('project-manager');assert.equal(run("accessCan('planning','aurora','write')"),true);assert.equal(run("accessCan('technology','aurora')"),true);assert.equal(run("accessCan('technology','aurora','write')"),false);assert.equal(run("accessCan('planning','orbit')"),false);assert.equal(run("accessCan('dashboard','aurora')"),false);assert.equal(run('accessCanAdmin()'),false);assert.equal(run("accessCanSetDeadline('aurora')"),true);
+actor('project-manager');assert.equal(run("accessCan('planning','aurora','write')"),true);assert.equal(run("accessCan('technology','aurora')"),true);assert.equal(run("accessCan('technology','aurora','write')"),false);assert.equal(run("accessCan('planning','orbit')"),false);assert.equal(run("accessCan('dashboard','aurora')"),false);assert.equal(run('accessCanAdmin()'),true);assert.equal(run("accessCanSetDeadline('aurora')"),true);
 run('accessActor().pmDeadlines=[];');assert.equal(run("accessCanSetDeadline('aurora')"),false);
 // Department heads configure only their own managers, only inside their own authority.
 actor('head-production');assert.equal(run(`accessCanManageUser(${user('project-manager')})`),false);
